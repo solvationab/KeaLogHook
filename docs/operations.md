@@ -21,6 +21,33 @@ sudo cmake --install build
 The hook must be built against the same Kea version that loads it. Rebuild it when Kea is
 upgraded.
 
+## Testing
+
+The unit tests use GoogleTest (`libgtest-dev`; it is downloaded automatically if not
+installed) and are built by default. Disable them with `-DIP_AUDIT_BUILD_TESTS=OFF`.
+
+```sh
+ctest --test-dir build --output-on-failure
+```
+
+They cover config validation, the formatters and the `Template` engine, the record builder
+(including option 82 decoding), the file and ZeroMQ sinks, and `AuditManager` (event
+filters and sink failure isolation). The file sink failure test uses `/dev/full`.
+
+The integration test starts a real `kea-dhcp4` with the installed hook and drives it with a
+simulated relay agent (`tests/integration/relay_client.py`) in a separate network namespace.
+The relay performs DISCOVER, REQUEST, a renewal and a RELEASE with option 82, and
+`check_audit_log.py` verifies the resulting records. It needs root, `iproute2`, `python3` and
+`kea-dhcp4`, and uses a veth pair named `ipa-kea` / `ipa-relay` and the network `10.99.0.0/24`.
+
+```sh
+sudo cmake --install build
+sudo bash tests/integration/run.sh
+```
+
+Both run in CI on every push and pull request (`.github/workflows/ci.yml`), against the Kea
+version packaged in Ubuntu 24.04 (2.4.x).
+
 ## Building install packages
 
 DEB and RPM packages are produced with CPack. Build on a machine of the same distribution

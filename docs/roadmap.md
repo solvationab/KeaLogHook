@@ -1,16 +1,17 @@
 # Roadmap: suggested improvements for ISP use
 
 Suggestions for hardening the hook and making it fit an ISP's traceability and compliance
-needs. None of these are implemented yet. They are grouped by theme; the suggested order
+needs. Only item 1 is implemented (in part). They are grouped by theme; the suggested order
 of implementation is at the end.
 
 ## Reliability and performance
 
-1. **Tests and CI.** There are no unit or integration tests yet. Start with the formatters,
-   the `Template` placeholder engine, config validation and the record builder. Add an
-   integration test that runs a real Kea with a simulated relay (for example `perfdhcp` or
-   a small packet generator). The code has not been built against a real Kea yet, so this
-   is the most important item.
+1. **Tests and CI.** *Done:* unit tests for config validation, the formatters, the
+   `Template` engine, the record builder, the sinks and `AuditManager`; an integration test
+   with a real Kea and a simulated relay; and a GitHub Actions workflow that runs both (see
+   [operations.md](operations.md#testing)). *Remaining:* run CI against more Kea versions
+   and distributions, add sanitizer (ASan/UBSan) and `-Werror` builds, build the DEB/RPM
+   packages in CI, and add a multi-threaded stress test.
 2. **Non-blocking delivery.** `Sink::write()` currently runs on the DHCP path, so a slow
    disk, `fsync: true` or a blocked network sink slows lease handling. Put a bounded
    in-memory queue and a writer thread between `AuditManager` and the sinks, and count
@@ -82,6 +83,6 @@ of implementation is at the end.
 
 ## Suggested order
 
-Start with items 1, 2, 3, 6 and 14. They harden the core without changing its design.
+Continue with items 2, 3, 6 and 14 (item 1 is largely done). They harden the core without changing its design.
 Then add retention (10), HA identity (8) and metrics (15), followed by DHCPv6 (5) and a
 database sink (18).

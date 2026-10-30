@@ -53,7 +53,9 @@ Add one line to the `SinkFactory` constructor in `src/sink_factory.cc`:
 registerType("mysink", createMySink);
 ```
 
-and add the new source file to `add_library(...)` in `CMakeLists.txt`.
+and add the new source file to `add_library(ip_audit_core ...)` in `CMakeLists.txt`. Add a
+test file for the sink to `tests/` (see `tests/file_sink_test.cc` for an example) and list
+it in `tests/CMakeLists.txt`.
 
 The sink can now be used from the Kea configuration with `"type": "mysink"`.
 

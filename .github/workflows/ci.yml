@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: Build, unit tests and integration test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config \
+            kea-dev libzmq3-dev libboost-dev libgtest-dev \
+            kea-dhcp4-server iproute2 python3
+          # The package starts a Kea instance on its default configuration; the integration test runs its own.
+          sudo systemctl stop kea-dhcp4-server || true
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DKEA_PREFIX=/usr
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Install the hook
+        run: sudo cmake --install build
+
+      - name: Integration test (real Kea with a simulated relay)
+        run: sudo bash tests/integration/run.sh

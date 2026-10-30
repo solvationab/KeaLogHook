@@ -79,7 +79,7 @@ A complete example with both sinks is in [examples/kea-dhcp4.conf](examples/kea-
 - [docs/configuration.md](docs/configuration.md) - every configuration parameter
 - [docs/fields.md](docs/fields.md) - the fields and events in an audit record
 - [docs/extending.md](docs/extending.md) - adding a new sink
-- [docs/operations.md](docs/operations.md) - building, deploying, consuming data, privacy and limitations
+- [docs/operations.md](docs/operations.md) - building, testing, deploying, consuming data, privacy and limitations
 - [docs/roadmap.md](docs/roadmap.md) - suggested improvements for ISP use
 
 ## Requirements

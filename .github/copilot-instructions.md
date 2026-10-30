@@ -11,8 +11,10 @@ C++17 hook library for `kea-dhcp4` that records lease events (with DHCP option 8
 - CMake 3.16+, Linux/POSIX target. Requires Kea dev headers, `kea-msg-compiler`, libzmq and Boost headers.
 - `cmake -S . -B build -DKEA_PREFIX=/usr && cmake --build build`
 - Log messages in `src/ip_audit_messages.mes` are compiled to `build/generated/`; never edit generated files.
-- New `.cc` files must be added to `add_library(dhcp_ip_audit ...)` in `CMakeLists.txt`.
-- There are no tests yet and the code has not been built against a real Kea (see `docs/roadmap.md`). Do not claim a change is verified by a build or test run unless it was actually run.
+- New `.cc` files must be added to `add_library(ip_audit_core ...)` in `CMakeLists.txt` (everything except `callouts.cc`, which is part of the module `dhcp_ip_audit`).
+- Unit tests (GoogleTest) are in `tests/`: `ctest --test-dir build --output-on-failure`. New test files go into `add_executable(ip_audit_tests ...)` in `tests/CMakeLists.txt`. Add or update tests with every behavior change.
+- The integration test (real `kea-dhcp4` plus a simulated relay) is `sudo bash tests/integration/run.sh` after `sudo cmake --install build`; it needs root, `kea-dhcp4-server`, `iproute2` and `python3`.
+- CI is `.github/workflows/ci.yml` (Ubuntu 24.04, Kea 2.4 from the distribution). Do not claim a change is verified by a build or test run unless it was actually run.
 
 ## Architecture
 

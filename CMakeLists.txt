@@ -24,7 +24,7 @@ find_path(KEA_INCLUDE_DIR NAMES hooks/hooks.h HINTS ${KEA_PREFIX} PATH_SUFFIXES 
 find_program(KEA_MSG_COMPILER NAMES kea-msg-compiler HINTS ${KEA_PREFIX}/sbin ${KEA_PREFIX}/bin REQUIRED)
 
 set(KEA_LIBS "")
-foreach(lib kea-dhcpsrv kea-dhcp++ kea-hooks kea-log kea-util kea-cc kea-exceptions)
+foreach(lib kea-dhcpsrv kea-dhcp++ kea-hooks kea-log kea-util kea-asiolink kea-cc kea-exceptions)
     find_library(KEA_LIB_${lib} NAMES ${lib} HINTS ${KEA_PREFIX} PATH_SUFFIXES lib lib64 REQUIRED)
     list(APPEND KEA_LIBS ${KEA_LIB_${lib}})
 endforeach()
@@ -37,9 +37,9 @@ add_custom_command(
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/ip_audit_messages.mes
     COMMENT "Compiling Kea log messages")
 
-add_library(dhcp_ip_audit MODULE
+# Everything except the Kea entry points, so that the unit tests can link it too.
+add_library(ip_audit_core STATIC
     src/audit_manager.cc
-    src/callouts.cc
     src/config_util.cc
     src/file_sink.cc
     src/formatter.cc
@@ -49,13 +49,23 @@ add_library(dhcp_ip_audit MODULE
     src/zmq_sink.cc
     ${GENERATED_DIR}/ip_audit_messages.cc)
 
-target_include_directories(dhcp_ip_audit PRIVATE
+target_include_directories(ip_audit_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${GENERATED_DIR}
     ${KEA_INCLUDE_DIR}
     ${Boost_INCLUDE_DIRS})
-target_link_libraries(dhcp_ip_audit PRIVATE ${KEA_LIBS} PkgConfig::ZMQ)
+target_link_libraries(ip_audit_core PUBLIC ${KEA_LIBS} PkgConfig::ZMQ)
+target_compile_options(ip_audit_core PRIVATE -Wall -Wextra)
+
+add_library(dhcp_ip_audit MODULE src/callouts.cc)
+target_link_libraries(dhcp_ip_audit PRIVATE ip_audit_core)
 target_compile_options(dhcp_ip_audit PRIVATE -Wall -Wextra)
+
+option(IP_AUDIT_BUILD_TESTS "Build the unit tests" ON)
+if(IP_AUDIT_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 install(TARGETS dhcp_ip_audit LIBRARY DESTINATION ${KEA_HOOKS_DIR})
 install(FILES examples/kea-dhcp4.conf DESTINATION ${CMAKE_INSTALL_DOCDIR}/examples)

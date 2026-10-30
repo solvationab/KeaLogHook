@@ -22,7 +22,7 @@ void publish(const char* event, const Pkt4Ptr& query, const Lease4Ptr& lease) {
     try {
         manager->publish(ip_audit::buildRecord(event, query, lease));
     } catch (const std::exception& ex) {
-        LOG_ERROR(ip_audit::ip_audit_logger, IP_AUDIT_CALLOUT_FAILED).arg(event).arg(ex.what());
+        LOG_ERROR(ip_audit::ip_audit_logger, ip_audit::IP_AUDIT_CALLOUT_FAILED).arg(event).arg(ex.what());
     }
 }
 
@@ -101,16 +101,16 @@ int load(LibraryHandle& handle) {
         handle.registerCallout("lease4_expire", lease4_expire);
     } catch (const std::exception& ex) {
         manager.reset();
-        LOG_ERROR(ip_audit::ip_audit_logger, IP_AUDIT_LOAD_FAILED).arg(ex.what());
+        LOG_ERROR(ip_audit::ip_audit_logger, ip_audit::IP_AUDIT_LOAD_FAILED).arg(ex.what());
         return 1;
     }
-    LOG_INFO(ip_audit::ip_audit_logger, IP_AUDIT_LOAD_OK).arg(manager->sinkCount());
+    LOG_INFO(ip_audit::ip_audit_logger, ip_audit::IP_AUDIT_LOAD_OK).arg(manager->sinkCount());
     return 0;
 }
 
 int unload() {
     manager.reset();
-    LOG_INFO(ip_audit::ip_audit_logger, IP_AUDIT_UNLOAD);
+    LOG_INFO(ip_audit::ip_audit_logger, ip_audit::IP_AUDIT_UNLOAD);
     return 0;
 }
 

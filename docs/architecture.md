@@ -40,6 +40,7 @@ sequenceDiagram
 | `src/config_util.*` | Typed, validating accessors for Kea configuration elements. |
 | `src/ip_audit_messages.mes` | Kea log message definitions (compiled by `kea-msg-compiler`). |
 | `src/ip_audit_log.*` | The hook's logger (`ip-audit-hooks`). |
+| `tests/` | GoogleTest unit tests, plus `tests/integration/` (real Kea with a simulated relay). All sources except `callouts.cc` are built into the static library `ip_audit_core`, which the tests link. |
 
 ## Hook points
 
