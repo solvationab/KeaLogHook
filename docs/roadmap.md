@@ -1,7 +1,7 @@
 # Roadmap: suggested improvements for ISP use
 
 Suggestions for hardening the hook and making it fit an ISP's traceability and compliance
-needs. Items 1 and 2 are implemented (item 1 in part). They are grouped by theme; the
+needs. Items 1, 2 and 5 are implemented (item 1 in part). They are grouped by theme; the
 suggested order of implementation is at the end.
 
 ## Reliability and performance
@@ -27,10 +27,9 @@ suggested order of implementation is at the end.
 
 ## Traceability coverage
 
-5. **DHCPv6 and prefix delegation.** Dual-stack ISPs also need to know who held which IPv6
-   address or delegated prefix (IA_NA, IA_PD), with relay data such as interface-id
-   (option 18) and remote-id (option 37). This is the largest functional gap and needs
-   hooks for `kea-dhcp6`.
+5. **DHCPv6 and prefix delegation.** *Done:* a DHCPv6 hook module records IA_NA, IA_TA and
+    IA_PD lease events, including DUID/IAID, delegated prefix length, relay interface-id and
+    remote-id. A separate library is built for `kea-dhcp6`.
 6. **Lease-delete event.** Kea's `deleted_leases4` argument of `leases4_committed` shows
    when a client's old address is dropped because it received a new one. That gives a clean
    end time for the old assignment.
@@ -85,5 +84,4 @@ suggested order of implementation is at the end.
 ## Suggested order
 
 Continue with items 3, 6 and 14 (item 1 is largely done). They harden the core without changing its design.
-Then add retention (10), HA identity (8) and metrics (15), followed by DHCPv6 (5) and a
-database sink (18).
+Then add retention (10), HA identity (8), metrics (15) and a database sink (18).

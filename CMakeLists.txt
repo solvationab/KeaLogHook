@@ -63,14 +63,18 @@ add_library(dhcp_ip_audit MODULE src/callouts.cc)
 target_link_libraries(dhcp_ip_audit PRIVATE ip_audit_core)
 target_compile_options(dhcp_ip_audit PRIVATE -Wall -Wextra)
 
+add_library(dhcp6_ip_audit MODULE src/callouts6.cc)
+target_link_libraries(dhcp6_ip_audit PRIVATE ip_audit_core)
+target_compile_options(dhcp6_ip_audit PRIVATE -Wall -Wextra)
+
 option(IP_AUDIT_BUILD_TESTS "Build the unit tests" ON)
 if(IP_AUDIT_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
 
-install(TARGETS dhcp_ip_audit LIBRARY DESTINATION ${KEA_HOOKS_DIR})
-install(FILES examples/kea-dhcp4.conf DESTINATION ${CMAKE_INSTALL_DOCDIR}/examples)
+install(TARGETS dhcp_ip_audit dhcp6_ip_audit LIBRARY DESTINATION ${KEA_HOOKS_DIR})
+install(FILES examples/kea-dhcp4.conf examples/kea-dhcp6.conf DESTINATION ${CMAKE_INSTALL_DOCDIR}/examples)
 install(FILES README.md DESTINATION ${CMAKE_INSTALL_DOCDIR})
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DOCDIR}/docs)
 
@@ -79,8 +83,8 @@ set(PACKAGE_MAINTAINER "Unknown <root@localhost>" CACHE STRING "Maintainer shown
 set(CPACK_PACKAGE_NAME "kea-ip-audit-hook")
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
 set(CPACK_PACKAGE_CONTACT ${PACKAGE_MAINTAINER})
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Kea DHCPv4 hook that logs lease assignments with option 82")
-set(CPACK_PACKAGE_DESCRIPTION "Records which client got which IPv4 address, including relay agent information (option 82), to a log file and/or a ZeroMQ PUB socket.")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Kea DHCPv4/v6 hook that logs lease assignments and relay data")
+set(CPACK_PACKAGE_DESCRIPTION "Records which client got which IPv4 address or IPv6 address/prefix, including relay agent information, to a log file and/or a ZeroMQ PUB socket.")
 set(CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 set(CPACK_GENERATOR "DEB;RPM")
 

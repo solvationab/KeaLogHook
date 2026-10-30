@@ -31,9 +31,9 @@ ctest --test-dir build --output-on-failure
 ```
 
 They cover config validation, the formatters and the `Template` engine, the record builder
-(including option 82 decoding), the file and ZeroMQ sinks, and `AuditManager` (event
-filters, queue overflow accounting, shutdown draining and sink failure isolation). The
-file sink failure test uses `/dev/full`.
+(including IPv4 option 82 and DHCPv6 IA/relay fields), the file and ZeroMQ sinks, and
+`AuditManager` (event filters, queue overflow accounting, shutdown draining and sink failure
+isolation). The file sink failure test uses `/dev/full`.
 
 The integration test starts a real `kea-dhcp4` with the installed hook and drives it with a
 simulated relay agent (`tests/integration/relay_client.py`) in a separate network namespace.
@@ -62,11 +62,11 @@ cpack -G DEB    # kea-ip-audit-hook_0.1.0_amd64.deb
 cpack -G RPM    # kea-ip-audit-hook-0.1.0-1.x86_64.rpm
 ```
 
-The package installs the library into Kea's hooks directory and the README, docs and example
-configuration under `<prefix>/share/doc`. Dependencies on the Kea and libzmq runtime
+The package installs both libraries into Kea's hooks directory and the README, docs and
+example configurations under `<prefix>/share/doc`. Dependencies on the Kea and libzmq runtime
 libraries are detected automatically from the built binary (`dpkg-shlibdeps` is required for
-DEB; `rpmbuild` for RPM). The package does not modify `kea-dhcp4.conf`; add the
-`hooks-libraries` entry yourself and restart Kea.
+DEB; `rpmbuild` for RPM). The package does not modify Kea configuration; add the appropriate
+`hooks-libraries` entry to `Dhcp4` or `Dhcp6` yourself and restart Kea.
 
 Install on the target with `apt install ./kea-ip-audit-hook_*.deb` or
 `dnf install ./kea-ip-audit-hook-*.rpm`.
@@ -80,7 +80,7 @@ During the build, `src/ip_audit_messages.mes` is compiled into the logging heade
 ## Logging
 
 The hook logs through Kea's logging framework with the logger name `ip-audit-hooks`
-(so it is covered by the `kea-dhcp4` logger configuration). Messages:
+(so it is covered by the `kea-dhcp4` or `kea-dhcp6` logger configuration). Messages:
 
 | Message | Meaning |
 |---------|---------|
@@ -138,10 +138,9 @@ Audit records are personal data. Restrict access accordingly:
   subscribers (they join later) or when a subscriber is slower than `send-hwm` allows. Use
   the file sink for the authoritative record and ZeroMQ for real-time consumers.
 - **Expiry events lack relay data** because no client packet is involved.
-- **Renewal detection relies on Kea sharing the callout context** between `lease4_renew`
-  and `leases4_committed` for the same packet. If this does not hold in your Kea version,
-  renewals are logged as `lease-assign`.
-- **DHCPv4 only.** DHCPv6 is not supported.
+- **Renewal detection relies on Kea sharing the callout context** between the family-specific
+  renew/rebind hook and the committed hook for the same packet. If this does not hold in your
+  Kea version, renewals are logged as `lease-assign`.
 - **POSIX only.** The file sink uses POSIX system calls.
 - **Configuration changes** take effect when Kea reloads its configuration, which unloads
   and reloads the library and its sinks.

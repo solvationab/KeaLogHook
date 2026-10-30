@@ -4,11 +4,11 @@
 
 | Event | Emitted when |
 |-------|--------------|
-| `lease-assign` | A lease was committed for a client that did not have one (DHCPACK, or DHCPDISCOVER with rapid commit). |
-| `lease-renew` | An existing lease was renewed. |
-| `lease-release` | The client released its lease (DHCPRELEASE). |
-| `lease-decline` | The client declined the address (DHCPDECLINE). |
-| `lease-expire` | The server reclaimed an expired lease. No relay information is available. |
+| `lease-assign` | A lease was committed for a client that did not have one (DHCPACK or DHCPv6 Reply). |
+| `lease-renew` | An existing lease was renewed or rebound. |
+| `lease-release` | The client released its lease. |
+| `lease-decline` | The client declined its lease. |
+| `lease-expire` | The server reclaimed an expired lease. No packet or relay information is available. |
 
 A sink can subscribe to a subset with the `events` parameter.
 
@@ -21,9 +21,9 @@ is omitted from JSON output unless `include-empty` is set.
 |-------|------|-------------|
 | `timestamp` | string | Time of the event, UTC, ISO 8601 with milliseconds (`2026-10-30T12:00:00.123Z`). |
 | `event` | string | One of the events above. |
-| `ip-address` | string | The leased IPv4 address. |
+| `ip-address` | string | The leased IPv4/IPv6 address, or the network address of a delegated prefix. |
 | `hw-address` | string | Client MAC address, lowercase hex with colons. |
-| `client-id` | string | DHCP client identifier (option 61) as hex with colons. |
+| `client-id` | string | DHCPv4 client identifier (option 61) as hex with colons. |
 | `hostname` | string | Hostname stored with the lease. Non-printable characters are replaced by `?`. |
 | `subnet-id` | number | Kea subnet id of the lease. |
 | `valid-lifetime` | number | Lease lifetime in seconds. |
@@ -32,15 +32,23 @@ is omitted from JSON output unless `include-empty` is set.
 | `transaction-id` | string | DHCP `xid` as a decimal number. |
 | `interface` | string | Server interface that received the packet. |
 | `giaddr` | string | Relay agent address from the packet header. |
-| `relay-address` | string | Source IP of the packet (the relay when relayed, otherwise the client). |
+| `relay-address` | string | Packet source address; for relayed DHCPv6, the outer relay's peer address. |
 | `circuit-id` | string | Option 82 sub-option 1 (Agent Circuit ID) as lowercase hex without separators. |
 | `circuit-id-text` | string | Same value as text, only if every byte is printable ASCII; otherwise empty. |
-| `remote-id` | string | Option 82 sub-option 2 (Agent Remote ID), hex. |
+| `remote-id` | string | DHCPv4 option 82 sub-option 2 or DHCPv6 relay option 37, hex. |
 | `remote-id-text` | string | Printable-ASCII form of `remote-id`, or empty. |
-| `subscriber-id` | string | Option 82 sub-option 6 (Subscriber ID), hex. |
+| `subscriber-id` | string | DHCPv4 option 82 sub-option 6 or DHCPv6 relay option 38, hex. |
 | `subscriber-id-text` | string | Printable-ASCII form of `subscriber-id`, or empty. |
 | `link-selection` | string | Option 82 sub-option 5 as a dotted IPv4 address. |
-| `relay-suboptions` | string | All option 82 sub-options as `code=hex` pairs separated by commas, e.g. `1=0004000a0001,2=0a1b2c3d4e5f`. Useful for vendor-specific sub-options not covered above. |
+| `relay-suboptions` | string | DHCPv4 option 82 sub-options as `code=hex` pairs; DHCPv6 relay options as `depth:code=hex` pairs. DHCPv6 depth 0 is the outermost relay. |
+| `address-family` | string | `IPv4` or `IPv6`. |
+| `lease-type` | string | DHCPv6 IA type: `IA_NA`, `IA_TA` or `IA_PD`; empty for DHCPv4. |
+| `iaid` | number | DHCPv6 Identity Association Identifier; empty for DHCPv4. |
+| `duid` | string | DHCPv6 client DUID as hex with colons; empty for DHCPv4. |
+| `prefix-length` | number | Delegated prefix length for IA_PD; empty for addresses and DHCPv4. |
+| `relay-interface-id` | string | DHCPv6 option 18 from the relay closest to the client, as lowercase hex. |
+| `relay-interface-id-text` | string | Printable-ASCII form of `relay-interface-id`, or empty. |
+| `relay-link-address` | string | Link address from the outermost DHCPv6 relay. |
 
 ## Which fields identify a subscriber?
 

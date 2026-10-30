@@ -1,6 +1,7 @@
 #include "record_builder.h"
 
 #include <dhcp/dhcp4.h>
+#include <dhcp/dhcp6.h>
 #include <dhcp/option.h>
 
 #include <chrono>
@@ -132,6 +133,122 @@ AuditRecord buildRecord(const std::string& event, const Pkt4Ptr& query, const Le
     r.set("subscriber-id-text", printableOrEmpty(subscriber));
     r.set("link-selection", linkSelection);
     r.set("relay-suboptions", suboptions);
+    r.set("address-family", "IPv4");
+    r.set("lease-type", "");
+    r.setEmptyNumber("iaid");
+    r.set("duid", "");
+    r.setEmptyNumber("prefix-length");
+    r.set("relay-interface-id", "");
+    r.set("relay-interface-id-text", "");
+    r.set("relay-link-address", "");
+    return r;
+}
+
+AuditRecord buildRecord(const std::string& event, const Pkt6Ptr& query, const Lease6Ptr& lease) {
+    AuditRecord r;
+    r.set("timestamp", nowIso());
+    r.set("event", event);
+    r.set("ip-address", lease->addr_.toText());
+    r.set("hw-address", lease->hwaddr_ ? lease->hwaddr_->toText(false) : "");
+    r.set("client-id", "");
+    r.set("hostname", sanitize(lease->hostname_));
+    r.setNumber("subnet-id", lease->subnet_id_);
+    r.setNumber("valid-lifetime", lease->valid_lft_);
+    r.set("lease-expires",
+          isoTime(static_cast<std::time_t>(lease->cltt_) + static_cast<std::time_t>(lease->valid_lft_)));
+
+    const char* leaseType = "IA_NA";
+    if (lease->type_ == Lease::TYPE_TA) {
+        leaseType = "IA_TA";
+    } else if (lease->type_ == Lease::TYPE_PD) {
+        leaseType = "IA_PD";
+    }
+    std::string messageType, transactionId, iface, relayAddress, remoteId, remoteIdText;
+    std::string subscriberId, subscriberIdText, interfaceId, interfaceIdText, relaySuboptions;
+    std::string relayLinkAddress;
+    if (query) {
+        messageType = query->getName();
+        transactionId = std::to_string(query->getTransid());
+        iface = sanitize(query->getIface());
+        relayAddress = query->getRemoteAddr().toText();
+        if (!query->relay_info_.empty()) {
+            const auto& outerRelay = query->relay_info_.front();
+            relayAddress = outerRelay.peeraddr_.toText();
+            relayLinkAddress = outerRelay.linkaddr_.toText();
+
+            for (size_t depth = 0; depth < query->relay_info_.size(); ++depth) {
+                const auto& relay = query->relay_info_[depth];
+                for (const auto& option : relay.options_) {
+                    if (option.first == D6O_RELAY_MSG) {
+                        continue;
+                    }
+                    if (!relaySuboptions.empty()) {
+                        relaySuboptions += ',';
+                    }
+                    relaySuboptions += std::to_string(depth) + ":" + std::to_string(option.first) + "=" +
+                                       toHex(option.second->toBinary());
+                }
+            }
+
+            // Use the relay closest to the client that supplies each identifier.
+            for (auto relay = query->relay_info_.rbegin(); relay != query->relay_info_.rend(); ++relay) {
+                auto getOption = [&](uint16_t code) -> OptionPtr {
+                    auto option = relay->options_.find(code);
+                    return option == relay->options_.end() ? OptionPtr() : option->second;
+                };
+                if (interfaceId.empty()) {
+                    OptionPtr option = getOption(D6O_INTERFACE_ID);
+                    if (option) {
+                        auto data = option->toBinary();
+                        interfaceId = toHex(data);
+                        interfaceIdText = printableOrEmpty(data);
+                    }
+                }
+                if (remoteId.empty()) {
+                    OptionPtr option = getOption(D6O_REMOTE_ID);
+                    if (option) {
+                        auto data = option->toBinary();
+                        remoteId = toHex(data);
+                        remoteIdText = printableOrEmpty(data);
+                    }
+                }
+                if (subscriberId.empty()) {
+                    OptionPtr option = getOption(D6O_SUBSCRIBER_ID);
+                    if (option) {
+                        auto data = option->toBinary();
+                        subscriberId = toHex(data);
+                        subscriberIdText = printableOrEmpty(data);
+                    }
+                }
+            }
+        }
+    }
+
+    r.set("message-type", messageType);
+    r.set("transaction-id", transactionId);
+    r.set("interface", iface);
+    r.set("giaddr", "");
+    r.set("relay-address", relayAddress);
+    r.set("circuit-id", "");
+    r.set("circuit-id-text", "");
+    r.set("remote-id", remoteId);
+    r.set("remote-id-text", remoteIdText);
+    r.set("subscriber-id", subscriberId);
+    r.set("subscriber-id-text", subscriberIdText);
+    r.set("link-selection", "");
+    r.set("relay-suboptions", relaySuboptions);
+    r.set("address-family", "IPv6");
+    r.set("lease-type", leaseType);
+    r.setNumber("iaid", lease->iaid_);
+    r.set("duid", lease->duid_ ? lease->duid_->toText() : "");
+    if (lease->type_ == Lease::TYPE_PD) {
+        r.setNumber("prefix-length", lease->prefixlen_);
+    } else {
+        r.setEmptyNumber("prefix-length");
+    }
+    r.set("relay-interface-id", interfaceId);
+    r.set("relay-interface-id-text", interfaceIdText);
+    r.set("relay-link-address", relayLinkAddress);
     return r;
 }
 

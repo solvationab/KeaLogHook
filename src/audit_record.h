@@ -15,7 +15,9 @@ inline const std::vector<std::string>& knownFieldNames() {
         "lease-expires", "message-type",    "transaction-id", "interface",
         "giaddr",        "relay-address",   "circuit-id",     "circuit-id-text",
         "remote-id",     "remote-id-text",  "subscriber-id",  "subscriber-id-text",
-        "link-selection", "relay-suboptions"};
+        "link-selection", "relay-suboptions", "address-family", "lease-type",
+        "iaid", "duid", "prefix-length", "relay-interface-id",
+        "relay-interface-id-text", "relay-link-address"};
     return names;
 }
 
@@ -39,6 +41,10 @@ public:
 
     void setNumber(std::string name, int64_t value) {
         fields_.push_back({std::move(name), std::to_string(value), true});
+    }
+
+    void setEmptyNumber(std::string name) {
+        fields_.push_back({std::move(name), "", true});
     }
 
     const Field* find(const std::string& name) const {

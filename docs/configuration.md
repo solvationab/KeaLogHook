@@ -1,7 +1,8 @@
 # Configuration reference
 
 The hook is configured through the `parameters` of its entry in `hooks-libraries` in the
-`Dhcp4` section of the Kea configuration.
+Kea configuration. Use `libdhcp_ip_audit.so` in `Dhcp4`, or `libdhcp6_ip_audit.so` in
+`Dhcp6`; the sink parameters are the same for both libraries.
 
 ```json
 {
@@ -128,3 +129,4 @@ select events or any other topic structure you build with the `topic` template.
 ```
 
 See [../examples/kea-dhcp4.conf](../examples/kea-dhcp4.conf) for a fuller example.
+For DHCPv6, see [../examples/kea-dhcp6.conf](../examples/kea-dhcp6.conf).

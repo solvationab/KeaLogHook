@@ -1,18 +1,18 @@
 # Kea IP Audit Hook
 
-A hook library for the [Kea DHCPv4 server](https://www.isc.org/kea/) that records
-**who got which IP address and when**, including the DHCP relay agent information
-(option 82) that identifies the subscriber's port or line.
+A hook library for the [Kea DHCPv4 and DHCPv6 servers](https://www.isc.org/kea/) that records
+**who got which IP address or delegated prefix and when**, including DHCP relay data that
+identifies the subscriber's port or line.
 
 It is intended for ISPs that need to trace an IP address back to a subscriber
 (for example for abuse handling or legal data retention requirements).
 
 ## What it does
 
-Every time Kea assigns, renews, releases, declines or expires an IPv4 lease, the hook
-builds an *audit record* and queues it for asynchronous delivery to one or more configurable
-**sinks**. A record contains the IP address, client MAC, client-id, hostname, lease times, relay address,
-and all option 82 sub-options (circuit-id, remote-id, subscriber-id, link-selection, ...).
+The DHCPv4 and DHCPv6 libraries build an *audit record* for lease assignment, renewal,
+release, decline and expiry events and queue it for asynchronous delivery to configurable
+**sinks**. DHCPv6 records include IA_NA, IA_TA and IA_PD details, DUID/IAID, delegated
+prefix length, and relay interface-id and remote-id data.
 
 Two sinks are included:
 
@@ -33,7 +33,9 @@ what is logged, where, or in which format.
 ```mermaid
 flowchart LR
     K[Kea DHCPv4] -->|hook callouts| C[callouts.cc]
+    K6[Kea DHCPv6] -->|hook callouts| C6[callouts6.cc]
     C --> B[record builder]
+    C6 --> B
     B --> M[AuditManager]
     M -->|event filter| S1[file sink]
     M -->|event filter| S2[zeromq sink]
@@ -54,7 +56,8 @@ flowchart LR
    Or build a DEB/RPM package for easy installation on servers (`cd build && cpack -G DEB`,
    see [docs/operations.md](docs/operations.md#building-install-packages)).
 
-2. Add the library to the `Dhcp4` section of `kea-dhcp4.conf`:
+2. Add the matching library to the server configuration. Use `libdhcp_ip_audit.so` in
+  `Dhcp4`, or `libdhcp6_ip_audit.so` in `Dhcp6`:
 
    ```json
    "hooks-libraries": [
@@ -76,6 +79,7 @@ flowchart LR
    ```
 
 A complete example with both sinks is in [examples/kea-dhcp4.conf](examples/kea-dhcp4.conf).
+The DHCPv6 configuration example is [examples/kea-dhcp6.conf](examples/kea-dhcp6.conf).
 
 ## Documentation
 
@@ -88,7 +92,7 @@ A complete example with both sinks is in [examples/kea-dhcp4.conf](examples/kea-
 
 ## Requirements
 
-- Kea DHCPv4 with hooks support (development headers and `kea-msg-compiler`)
+- Kea DHCPv4 and/or DHCPv6 with hooks support (development headers and `kea-msg-compiler`)
 - libzmq
 - Boost (headers only)
 - A C++17 compiler and CMake 3.16+

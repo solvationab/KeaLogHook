@@ -2,21 +2,21 @@
 
 ## Overview
 
-The hook is a Kea hook library loaded into `kea-dhcp4`. It registers callouts on
-lease-related hook points, converts each event to an `AuditRecord` (an ordered list of
-name/value fields) and delivers it to every configured sink.
+The DHCPv4 and DHCPv6 hook libraries register callouts on lease-related hook points,
+convert each event to an `AuditRecord` (an ordered list of name/value fields) and deliver
+it to every configured sink.
 
 ```mermaid
 sequenceDiagram
     participant Kea
-    participant Callout as callouts.cc
+    participant Callout as callouts.cc / callouts6.cc
     participant Builder as record_builder.cc
     participant Mgr as AuditManager
     participant Queue as Bounded record queue
     participant Worker as Sink worker
     participant Sink as Sink (file / zeromq)
 
-    Kea->>Callout: leases4_committed(query4, leases4)
+  Kea->>Callout: leases4_committed or leases6_committed
     Callout->>Builder: buildRecord(event, query, lease)
     Builder-->>Callout: AuditRecord
     Callout->>Mgr: publish(record)
@@ -34,7 +34,8 @@ sequenceDiagram
 | File | Responsibility |
 |------|----------------|
 | `src/callouts.cc` | Library entry points (`version`, `load`, `unload`, `multi_threading_compatible`) and the Kea callouts. |
-| `src/record_builder.*` | Builds an `AuditRecord` from the client packet (`Pkt4`) and the `Lease4`. Decodes option 82. |
+| `src/callouts6.cc` | DHCPv6 library entry points and callouts. |
+| `src/record_builder.*` | Builds records from `Pkt4`/`Lease4` or `Pkt6`/`Lease6`; decodes option 82 and DHCPv6 relay options. |
 | `src/audit_record.h` | The `AuditRecord` type plus the lists of known field and event names. |
 | `src/audit_manager.*` | Parses sinks, owns the bounded record queue and worker, applies per-sink event filters and isolates sink failures. |
 | `src/record_queue.*` | Bounded FIFO queue; rejects new records when full and drains accepted records on shutdown. |
@@ -46,7 +47,7 @@ sequenceDiagram
 | `src/config_util.*` | Typed, validating accessors for Kea configuration elements. |
 | `src/ip_audit_messages.mes` | Kea log message definitions (compiled by `kea-msg-compiler`). |
 | `src/ip_audit_log.*` | The hook's logger (`ip-audit-hooks`). |
-| `tests/` | GoogleTest unit tests, plus `tests/integration/` (real Kea with a simulated relay). All sources except `callouts.cc` are built into the static library `ip_audit_core`, which the tests link. |
+| `tests/` | GoogleTest unit tests, plus `tests/integration/` (real DHCPv4 Kea with a simulated relay). Core sources are built into `ip_audit_core`, which the tests link. |
 
 ## Hook points
 
@@ -57,6 +58,11 @@ sequenceDiagram
 | `lease4_release` | `lease-release` | Triggered by DHCPRELEASE. |
 | `lease4_decline` | `lease-decline` | Triggered by DHCPDECLINE. |
 | `lease4_expire` | `lease-expire` | Triggered by lease reclamation. No client packet exists, so relay and packet fields are empty. |
+| `leases6_committed` | `lease-assign` or `lease-renew` | One record per committed IA_NA, IA_TA or IA_PD lease. |
+| `lease6_renew`, `lease6_rebind` | - | Mark the packet context so `leases6_committed` can emit `lease-renew`. |
+| `lease6_release` | `lease-release` | Triggered by a DHCPv6 Release. |
+| `lease6_decline` | `lease-decline` | Triggered by a DHCPv6 Decline. |
+| `lease6_expire` | `lease-expire` | Triggered by lease reclamation; no client packet exists. |
 
 ## Load, run and unload
 
