@@ -14,11 +14,37 @@ sudo cmake --install build
 
 | CMake variable | Default | Meaning |
 |----------------|---------|---------|
-| `KEA_PREFIX` | `/usr` | Where Kea is installed. |
-| `KEA_HOOKS_DIR` | `${KEA_PREFIX}/lib/kea/hooks` | Install location of `libdhcp_ip_audit.so`. |
+| `KEA_PREFIX` | `/usr` | Where Kea is installed. Also the default install prefix. |
+| `KEA_HOOKS_DIR` | `<libdir>/kea/hooks` | Hook directory relative to the install prefix. `<libdir>` follows the distribution (`lib64` on RPM systems, `lib/<multiarch>` on Debian). |
+| `PACKAGE_MAINTAINER` | placeholder | Maintainer shown in DEB/RPM metadata. |
 
 The hook must be built against the same Kea version that loads it. Rebuild it when Kea is
 upgraded.
+
+## Building install packages
+
+DEB and RPM packages are produced with CPack. Build on a machine of the same distribution
+and Kea version as the target servers.
+
+```sh
+cmake -S . -B build -DPACKAGE_MAINTAINER="Name <name@example.com>"
+cmake --build build
+cd build
+cpack -G DEB    # kea-ip-audit-hook_0.1.0_amd64.deb
+cpack -G RPM    # kea-ip-audit-hook-0.1.0-1.x86_64.rpm
+```
+
+The package installs the library into Kea's hooks directory and the README, docs and example
+configuration under `<prefix>/share/doc`. Dependencies on the Kea and libzmq runtime
+libraries are detected automatically from the built binary (`dpkg-shlibdeps` is required for
+DEB; `rpmbuild` for RPM). The package does not modify `kea-dhcp4.conf`; add the
+`hooks-libraries` entry yourself and restart Kea.
+
+Install on the target with `apt install ./kea-ip-audit-hook_*.deb` or
+`dnf install ./kea-ip-audit-hook-*.rpm`.
+
+Because the hook is tied to the Kea hooks API version, build one package per Kea release
+series and distribution, ideally in a container or CI job matching each target.
 
 During the build, `src/ip_audit_messages.mes` is compiled into the logging headers by
 `kea-msg-compiler`.

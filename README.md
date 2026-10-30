@@ -47,6 +47,9 @@ flowchart LR
    sudo cmake --install build
    ```
 
+   Or build a DEB/RPM package for easy installation on servers (`cd build && cpack -G DEB`,
+   see [docs/operations.md](docs/operations.md#building-install-packages)).
+
 2. Add the library to the `Dhcp4` section of `kea-dhcp4.conf`:
 
    ```json

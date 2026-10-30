@@ -1,12 +1,20 @@
 cmake_minimum_required(VERSION 3.16)
-project(kea_ip_audit LANGUAGES CXX)
+project(kea_ip_audit VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 set(KEA_PREFIX "/usr" CACHE PATH "Kea installation prefix")
-set(KEA_HOOKS_DIR "${KEA_PREFIX}/lib/kea/hooks" CACHE PATH "Where to install the hook library")
+# Install next to Kea by default so packages land in /usr rather than /usr/local.
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX "${KEA_PREFIX}" CACHE PATH "" FORCE)
+endif()
+
+include(GNUInstallDirs)
+
+# Relative to the install prefix; follows the distribution layout (lib64 on RPM, lib/<multiarch> on Debian).
+set(KEA_HOOKS_DIR "${CMAKE_INSTALL_LIBDIR}/kea/hooks" CACHE STRING "Hook library directory, relative to the install prefix")
 
 find_package(PkgConfig REQUIRED)
 find_package(Boost REQUIRED)
@@ -50,3 +58,28 @@ target_link_libraries(dhcp_ip_audit PRIVATE ${KEA_LIBS} PkgConfig::ZMQ)
 target_compile_options(dhcp_ip_audit PRIVATE -Wall -Wextra)
 
 install(TARGETS dhcp_ip_audit LIBRARY DESTINATION ${KEA_HOOKS_DIR})
+install(FILES examples/kea-dhcp4.conf DESTINATION ${CMAKE_INSTALL_DOCDIR}/examples)
+install(FILES README.md DESTINATION ${CMAKE_INSTALL_DOCDIR})
+install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DOCDIR}/docs)
+
+# Packaging: run `cpack -G DEB` or `cpack -G RPM` in the build directory.
+set(PACKAGE_MAINTAINER "Unknown <root@localhost>" CACHE STRING "Maintainer shown in the package")
+set(CPACK_PACKAGE_NAME "kea-ip-audit-hook")
+set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+set(CPACK_PACKAGE_CONTACT ${PACKAGE_MAINTAINER})
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Kea DHCPv4 hook that logs lease assignments with option 82")
+set(CPACK_PACKAGE_DESCRIPTION "Records which client got which IPv4 address, including relay agent information (option 82), to a log file and/or a ZeroMQ PUB socket.")
+set(CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
+set(CPACK_GENERATOR "DEB;RPM")
+
+# Library dependencies (libkea-*, libzmq) are derived automatically from the built binary.
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+set(CPACK_DEBIAN_PACKAGE_SECTION "net")
+set(CPACK_RPM_PACKAGE_AUTOREQ ON)
+set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
+set(CPACK_RPM_PACKAGE_LICENSE "Proprietary")
+set(CPACK_RPM_PACKAGE_GROUP "System Environment/Daemons")
+# Files under the Kea-owned hooks directory must not be claimed as owned by this package.
+set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION "${CMAKE_INSTALL_PREFIX}/${KEA_HOOKS_DIR}")
+include(CPack)
