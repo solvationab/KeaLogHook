@@ -12,14 +12,19 @@ sequenceDiagram
     participant Callout as callouts.cc
     participant Builder as record_builder.cc
     participant Mgr as AuditManager
+    participant Queue as Bounded record queue
+    participant Worker as Sink worker
     participant Sink as Sink (file / zeromq)
 
     Kea->>Callout: leases4_committed(query4, leases4)
     Callout->>Builder: buildRecord(event, query, lease)
     Builder-->>Callout: AuditRecord
     Callout->>Mgr: publish(record)
-    loop each sink subscribed to the event
-        Mgr->>Sink: write(record)
+    Mgr->>Queue: try enqueue
+    Mgr-->>Callout: return
+    Worker->>Queue: dequeue
+    loop each subscribed sink
+      Worker->>Sink: write(record)
         Sink->>Sink: Formatter::format(record)
     end
 ```
@@ -31,7 +36,8 @@ sequenceDiagram
 | `src/callouts.cc` | Library entry points (`version`, `load`, `unload`, `multi_threading_compatible`) and the Kea callouts. |
 | `src/record_builder.*` | Builds an `AuditRecord` from the client packet (`Pkt4`) and the `Lease4`. Decodes option 82. |
 | `src/audit_record.h` | The `AuditRecord` type plus the lists of known field and event names. |
-| `src/audit_manager.*` | Parses the `sinks` parameter, owns the sinks, applies per-sink event filters and isolates sink failures. |
+| `src/audit_manager.*` | Parses sinks, owns the bounded record queue and worker, applies per-sink event filters and isolates sink failures. |
+| `src/record_queue.*` | Bounded FIFO queue; rejects new records when full and drains accepted records on shutdown. |
 | `src/sink.h` | The abstract `Sink` interface. |
 | `src/sink_factory.*` | Maps the `type` string of a sink to its implementation. |
 | `src/file_sink.*` | File sink with size-based rotation. |
@@ -59,16 +65,19 @@ sequenceDiagram
   unreachable bind address) is logged as `IP_AUDIT_LOAD_FAILED` and `load()` returns 1,
   so Kea refuses to start or reconfigure with a broken configuration instead of silently
   not logging.
-- **Run:** callouts never throw into Kea. A failing sink is logged
-  (`IP_AUDIT_SINK_WRITE_FAILED`) and the other sinks and DHCP processing continue.
-- **Unload:** the manager and all sinks are destroyed, files are closed and ZeroMQ
-  sockets and contexts are shut down.
+- **Run:** callouts enqueue records for asynchronous delivery and never wait for sink writes.
+  A full queue drops the newest record; the cumulative drop count is logged at unload as
+  `IP_AUDIT_QUEUE_OVERFLOW`. A failing sink is logged (`IP_AUDIT_SINK_WRITE_FAILED`) and
+  other sinks continue receiving records.
+- **Unload:** the queue stops accepting records and the worker drains accepted records
+  before sinks are destroyed, files are closed and ZeroMQ sockets and contexts are shut down.
 
 ## Threading
 
-The library declares itself multi-threading compatible. Callouts can run concurrently, so
-each sink serialises access to its own resource with a mutex (the file descriptor, the
-ZeroMQ socket). Formatting happens outside the lock.
+The library declares itself multi-threading compatible. Callouts can run concurrently and
+enqueue records under the queue mutex. A single worker owns delivery, so sink writes do not
+run on the DHCP path; each sink also protects its own resource with a mutex. Formatting
+happens outside each sink's resource lock.
 
 ## Configuration flow
 

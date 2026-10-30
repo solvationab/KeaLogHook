@@ -1,8 +1,8 @@
 # Roadmap: suggested improvements for ISP use
 
 Suggestions for hardening the hook and making it fit an ISP's traceability and compliance
-needs. Only item 1 is implemented (in part). They are grouped by theme; the suggested order
-of implementation is at the end.
+needs. Items 1 and 2 are implemented (item 1 in part). They are grouped by theme; the
+suggested order of implementation is at the end.
 
 ## Reliability and performance
 
@@ -12,10 +12,11 @@ of implementation is at the end.
    [operations.md](operations.md#testing)). *Remaining:* run CI against more Kea versions
    and distributions, add sanitizer (ASan/UBSan) and `-Werror` builds, build the DEB/RPM
    packages in CI, and add a multi-threaded stress test.
-2. **Non-blocking delivery.** `Sink::write()` currently runs on the DHCP path, so a slow
-   disk, `fsync: true` or a blocked network sink slows lease handling. Put a bounded
-   in-memory queue and a writer thread between `AuditManager` and the sinks, and count
-   records dropped when the queue overflows.
+2. **Non-blocking delivery.** *Done:* `AuditManager` now sends records to a bounded FIFO
+    queue and one sink worker; callouts do not wait for sink writes. `queue-size` defaults to
+    10,000 (maximum 1,000,000); when full, the newest record is dropped and the cumulative
+    count is logged on unload. Accepted records are drained during unload. See
+    [configuration.md](configuration.md#top-level-parameters).
 3. **Renewal noise reduction.** After an outage, tens of thousands of clients renew at
    once and every renewal produces a record. Add per-sink options such as "log renewals
    only when the MAC, option 82 or IP changed", or a rate limit. This needs a small
@@ -83,6 +84,6 @@ of implementation is at the end.
 
 ## Suggested order
 
-Continue with items 2, 3, 6 and 14 (item 1 is largely done). They harden the core without changing its design.
+Continue with items 3, 6 and 14 (item 1 is largely done). They harden the core without changing its design.
 Then add retention (10), HA identity (8) and metrics (15), followed by DHCPv6 (5) and a
 database sink (18).

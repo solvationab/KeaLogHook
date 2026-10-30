@@ -50,6 +50,8 @@ TEST(AuditManager, RejectsInvalidSinksParameter) {
     EXPECT_THROW(AuditManager::create(json("{}")), ConfigError);
     EXPECT_THROW(AuditManager::create(json("[1]")), ConfigError);
     EXPECT_THROW(AuditManager::create(json("[{}]")), ConfigError);
+    EXPECT_THROW(AuditManager::create(json(R"([{"type":"file","path":"unused"}])"), 0),
+                 ConfigError);
 }
 
 TEST(AuditManager, RejectsUnknownSinkType) {
@@ -88,10 +90,25 @@ TEST(AuditManager, PublishesToEverySinkWhenNoEventFilter) {
         json(sinks({fileSink(dir.file("a.log")), fileSink(dir.file("b.log"))})));
 
     manager->publish(record("lease-assign"));
+    manager.reset();
 
     const std::vector<std::string> expected = {R"({"event":"lease-assign","ip-address":"192.0.2.10"})"};
     EXPECT_EQ(expected, readLines(dir.file("a.log")));
     EXPECT_EQ(expected, readLines(dir.file("b.log")));
+}
+
+TEST(AuditManager, DrainsQueuedRecordsInOrderWhenDestroyed) {
+    TempDir dir;
+    auto manager = AuditManager::create(json(sinks({fileSink(dir.file("a.log"))})), 128);
+    for (int i = 0; i < 100; ++i) {
+        manager->publish(record("lease-assign", "192.0.2." + std::to_string(i)));
+    }
+    manager.reset();
+
+    auto lines = readLines(dir.file("a.log"));
+    ASSERT_EQ(100u, lines.size());
+    EXPECT_NE(std::string::npos, lines.front().find("192.0.2.0"));
+    EXPECT_NE(std::string::npos, lines.back().find("192.0.2.99"));
 }
 
 TEST(AuditManager, AppliesPerSinkEventFilter) {
@@ -103,6 +120,7 @@ TEST(AuditManager, AppliesPerSinkEventFilter) {
 
     manager->publish(record("lease-assign"));
     manager->publish(record("lease-release"));
+    manager.reset();
 
     ASSERT_EQ(1u, readLines(dir.file("release.log")).size());
     EXPECT_NE(std::string::npos, readLines(dir.file("release.log"))[0].find("lease-release"));
@@ -119,9 +137,24 @@ TEST(AuditManager, RecordWithoutEventOnlyReachesUnfilteredSinks) {
     AuditRecord r;
     r.set("ip-address", "192.0.2.10");
     manager->publish(r);
+    manager.reset();
 
     EXPECT_TRUE(readLines(dir.file("filtered.log")).empty());
     EXPECT_EQ(1u, readLines(dir.file("all.log")).size());
+}
+
+TEST(AuditManager, UnsubscribedRecordsDoNotConsumeQueueCapacity) {
+    TempDir dir;
+    auto manager = AuditManager::create(
+        json(sinks({fileSink(dir.file("release.log"), R"("events":["lease-release"])")})), 1);
+
+    for (int i = 0; i < 10; ++i) {
+        manager->publish(record("lease-assign"));
+    }
+
+    EXPECT_EQ(0u, manager->droppedRecords());
+    manager.reset();
+    EXPECT_TRUE(readLines(dir.file("release.log")).empty());
 }
 
 TEST(AuditManager, FailingSinkDoesNotAffectOtherSinks) {
@@ -135,6 +168,7 @@ TEST(AuditManager, FailingSinkDoesNotAffectOtherSinks) {
 
     EXPECT_NO_THROW(manager->publish(record("lease-assign")));
     EXPECT_NO_THROW(manager->publish(record("lease-renew")));
+    manager.reset();
 
     EXPECT_EQ(2u, readLines(dir.file("ok.log")).size());
 }
@@ -146,6 +180,7 @@ TEST(AuditManager, TemplateFormatPerSink) {
         R"("format":{"type":"template","template":"%{event} %{ip-address}"})")})));
 
     manager->publish(record("lease-assign", "192.0.2.77"));
+    manager.reset();
 
     EXPECT_EQ((std::vector<std::string>{"lease-assign 192.0.2.77"}), readLines(dir.file("t.log")));
 }

@@ -32,7 +32,8 @@ ctest --test-dir build --output-on-failure
 
 They cover config validation, the formatters and the `Template` engine, the record builder
 (including option 82 decoding), the file and ZeroMQ sinks, and `AuditManager` (event
-filters and sink failure isolation). The file sink failure test uses `/dev/full`.
+filters, queue overflow accounting, shutdown draining and sink failure isolation). The
+file sink failure test uses `/dev/full`.
 
 The integration test starts a real `kea-dhcp4` with the installed hook and drives it with a
 simulated relay agent (`tests/integration/relay_client.py`) in a separate network namespace.
@@ -87,6 +88,7 @@ The hook logs through Kea's logging framework with the logger name `ip-audit-hoo
 | `IP_AUDIT_LOAD_FAILED` | Invalid configuration or a sink could not be created. Kea will not load the library. |
 | `IP_AUDIT_SINK_CREATED` | A sink was created. |
 | `IP_AUDIT_SINK_WRITE_FAILED` | A sink failed to store a record. |
+| `IP_AUDIT_QUEUE_OVERFLOW` | Number of records dropped because the bounded queue filled, reported when the hook unloads. |
 | `IP_AUDIT_CALLOUT_FAILED` | A record could not be built. |
 | `IP_AUDIT_UNLOAD` | Library unloaded. |
 
@@ -127,6 +129,11 @@ Audit records are personal data. Restrict access accordingly:
 
 ## Limitations
 
+- **Bounded asynchronous delivery.** `queue-size` limits records waiting for the worker.
+  When sinks cannot keep up, new records are dropped and the total is reported at unload.
+  Accepted records are drained during unload, so a blocked sink can delay shutdown. The
+  queue is in memory; a process crash can lose queued records. Use the file sink as the
+  authoritative record and size the queue for expected short-term bursts.
 - **Delivery is best effort for ZeroMQ.** A PUB socket drops messages when there are no
   subscribers (they join later) or when a subscriber is slower than `send-hwm` allows. Use
   the file sink for the authoritative record and ZeroMQ for real-time consumers.

@@ -18,6 +18,10 @@ Informational message logged for every sink created at load time.
 A sink could not store an audit record. Other sinks are unaffected and
 DHCP processing continues.
 
+% IP_AUDIT_QUEUE_OVERFLOW audit queue dropped %1 record(s) since load
+Warning logged on unload when the bounded asynchronous delivery queue overflowed.
+The count is cumulative since the library loaded.
+
 % IP_AUDIT_CALLOUT_FAILED unable to process event '%1': %2
 An unexpected error occurred while building an audit record. DHCP
 processing continues.

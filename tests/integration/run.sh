@@ -67,7 +67,7 @@ cat > "$WORK/kea-dhcp4.conf" <<EOF
     "hooks-libraries": [
       {
         "library": "$HOOK_LIBRARY",
-        "parameters": { "sinks": [ { "type": "file", "path": "$AUDIT_LOG" } ] }
+        "parameters": { "queue-size": 100, "sinks": [ { "type": "file", "path": "$AUDIT_LOG" } ] }
       }
     ],
     "loggers": [

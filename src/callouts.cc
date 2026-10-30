@@ -1,4 +1,5 @@
 #include "audit_manager.h"
+#include "config_util.h"
 #include "ip_audit_log.h"
 #include "record_builder.h"
 
@@ -93,7 +94,10 @@ int multi_threading_compatible() {
 
 int load(LibraryHandle& handle) {
     try {
-        manager = ip_audit::AuditManager::create(handle.getParameter("sinks"));
+        int64_t queueSize = ip_audit::optInt(handle.getParameters(), "queue-size",
+                                             ip_audit::AuditManager::kDefaultQueueCapacity,
+                                             1, 1000000);
+        manager = ip_audit::AuditManager::create(handle.getParameter("sinks"), queueSize);
         handle.registerCallout("lease4_renew", lease4_renew);
         handle.registerCallout("leases4_committed", leases4_committed);
         handle.registerCallout("lease4_release", lease4_release);

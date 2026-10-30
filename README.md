@@ -10,8 +10,8 @@ It is intended for ISPs that need to trace an IP address back to a subscriber
 ## What it does
 
 Every time Kea assigns, renews, releases, declines or expires an IPv4 lease, the hook
-builds an *audit record* and hands it to one or more configurable **sinks**. A record
-contains the IP address, client MAC, client-id, hostname, lease times, relay address,
+builds an *audit record* and queues it for asynchronous delivery to one or more configurable
+**sinks**. A record contains the IP address, client MAC, client-id, hostname, lease times, relay address,
 and all option 82 sub-options (circuit-id, remote-id, subscriber-id, link-selection, ...).
 
 Two sinks are included:
@@ -20,6 +20,10 @@ Two sinks are included:
 |-----------|---------|
 | `file`    | Appends records to a log file, with size-based rotation. |
 | `zeromq`  | Publishes records on a ZeroMQ PUB socket for real-time consumers. |
+
+The bounded queue keeps slow sinks off the DHCP processing path. Records are dropped if
+the queue fills; the cumulative count is logged when the hook unloads. The default queue
+capacity is 10,000 records and can be changed with `queue-size`.
 
 Sinks are pluggable: new ways of storing records can be added without touching the
 hook logic (see [docs/extending.md](docs/extending.md)). Everything is controlled from

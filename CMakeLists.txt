@@ -18,6 +18,7 @@ set(KEA_HOOKS_DIR "${CMAKE_INSTALL_LIBDIR}/kea/hooks" CACHE STRING "Hook library
 
 find_package(PkgConfig REQUIRED)
 find_package(Boost REQUIRED)
+find_package(Threads REQUIRED)
 pkg_check_modules(ZMQ REQUIRED IMPORTED_TARGET libzmq)
 
 find_path(KEA_INCLUDE_DIR NAMES hooks/hooks.h HINTS ${KEA_PREFIX} PATH_SUFFIXES include/kea REQUIRED)
@@ -45,6 +46,7 @@ add_library(ip_audit_core STATIC
     src/formatter.cc
     src/ip_audit_log.cc
     src/record_builder.cc
+    src/record_queue.cc
     src/sink_factory.cc
     src/zmq_sink.cc
     ${GENERATED_DIR}/ip_audit_messages.cc)
@@ -54,7 +56,7 @@ target_include_directories(ip_audit_core PUBLIC
     ${GENERATED_DIR}
     ${KEA_INCLUDE_DIR}
     ${Boost_INCLUDE_DIRS})
-target_link_libraries(ip_audit_core PUBLIC ${KEA_LIBS} PkgConfig::ZMQ)
+target_link_libraries(ip_audit_core PUBLIC ${KEA_LIBS} PkgConfig::ZMQ Threads::Threads)
 target_compile_options(ip_audit_core PRIVATE -Wall -Wextra)
 
 add_library(dhcp_ip_audit MODULE src/callouts.cc)

@@ -24,7 +24,7 @@ C++17 hook library for `kea-dhcp4` that records lease events (with DHCP option 8
 - Configuration errors must throw at load time (`ConfigError`) so `load()` fails instead of silently not logging.
 - Config parsing is strict: reject unknown keys (`rejectUnknownKeys`) and validate values with the helpers in `src/config_util.h`.
 - The library is multi-threading compatible: each sink protects its own resource with a mutex; format outside the lock.
-- `Sink::write()` runs on the DHCP path, so keep it fast.
+- Sink writes run on the asynchronous worker, not the DHCP path. Keep them fast because a slow sink can fill the bounded queue, causing newer records to be dropped.
 
 ## Extending
 

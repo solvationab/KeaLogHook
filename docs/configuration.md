@@ -7,6 +7,7 @@ The hook is configured through the `parameters` of its entry in `hooks-libraries
 {
   "library": "/usr/lib/kea/hooks/libdhcp_ip_audit.so",
   "parameters": {
+    "queue-size": 10000,
     "sinks": [ { ... }, { ... } ]
   }
 }
@@ -16,7 +17,14 @@ The hook is configured through the `parameters` of its entry in `hooks-libraries
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `queue-size` | integer (1-1000000) | no | Maximum number of records waiting for sink delivery. Default: `10000`. When full, new records are dropped and counted; the count is logged when the hook unloads. |
 | `sinks` | list of objects | yes | One or more sink definitions. Every record is delivered to each sink that subscribes to its event. |
+
+Callouts enqueue records and return without waiting for sink writes. One worker delivers
+records to sinks in FIFO order. Records already accepted into the queue are drained when
+the hook unloads. A slow sink can fill the queue; records beyond its configured capacity
+are dropped rather than delaying DHCP processing. Sink failures are logged and do not
+prevent delivery to other sinks.
 
 ## Parameters common to all sinks
 
