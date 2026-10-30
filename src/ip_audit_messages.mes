@@ -1,0 +1,23 @@
+$NAMESPACE ip_audit
+
+% IP_AUDIT_LOAD_OK ip-audit hook loaded with %1 sink(s)
+Informational message logged when the hook library has been loaded and
+all configured sinks were created.
+
+% IP_AUDIT_LOAD_FAILED ip-audit hook failed to load: %1
+The hook parameters were invalid or a sink could not be created. The
+server will refuse to load the library.
+
+% IP_AUDIT_UNLOAD ip-audit hook unloaded
+Informational message logged when the hook library is unloaded.
+
+% IP_AUDIT_SINK_CREATED sink '%1' of type '%2' created
+Informational message logged for every sink created at load time.
+
+% IP_AUDIT_SINK_WRITE_FAILED sink '%1' failed to write record: %2
+A sink could not store an audit record. Other sinks are unaffected and
+DHCP processing continues.
+
+% IP_AUDIT_CALLOUT_FAILED unable to process event '%1': %2
+An unexpected error occurred while building an audit record. DHCP
+processing continues.
