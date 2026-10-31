@@ -17,6 +17,7 @@ sudo cmake --install build
 |----------------|---------|---------|
 | `KEA_PREFIX` | `/usr` | Where Kea is installed. Also the default install prefix. |
 | `KEA_HOOKS_DIR` | `<libdir>/kea/hooks` | Hook directory relative to the install prefix. `<libdir>` follows the distribution (`lib64` on RPM systems, `lib/<multiarch>` on Debian). |
+| `KEA_IP_AUDIT_VERSION` | `0.1.0` | Numeric `MAJOR.MINOR.PATCH` version used in DEB/RPM package metadata. |
 | `PACKAGE_MAINTAINER` | placeholder | Maintainer shown in DEB/RPM metadata. |
 
 The hook must be built against the same Kea version that loads it. Rebuild it when Kea is
@@ -66,11 +67,12 @@ DEB and RPM packages are produced with CPack. Build on a machine of the same dis
 and Kea version as the target servers.
 
 ```sh
-cmake -S . -B build -DPACKAGE_MAINTAINER="Name <name@example.com>"
+cmake -S . -B build -DPACKAGE_MAINTAINER="Name <name@example.com>" \
+  -DKEA_IP_AUDIT_VERSION=1.2.3
 cmake --build build
 cd build
-cpack -G DEB    # kea-ip-audit-hook_0.1.0_amd64.deb
-cpack -G RPM    # kea-ip-audit-hook-0.1.0-1.x86_64.rpm
+cpack -G DEB    # kea-ip-audit-hook_1.2.3_amd64.deb
+cpack -G RPM    # kea-ip-audit-hook-1.2.3-1.x86_64.rpm
 ```
 
 The package installs both libraries into Kea's hooks directory and the README, docs and
@@ -82,14 +84,40 @@ DEB; `rpmbuild` for RPM). The package does not modify Kea configuration; add the
 Install on the target with `apt install ./kea-ip-audit-hook_*.deb` or
 `dnf install ./kea-ip-audit-hook-*.rpm`.
 
-Because the hook is tied to the Kea hooks API version, build one package per Kea release
-series and distribution, ideally in a container or CI job matching each target.
+`KEA_IP_AUDIT_VERSION` must be numeric `MAJOR.MINOR.PATCH`; it defaults to `0.1.0`. Because
+the hook is tied to the Kea hooks API version, build one package per Kea release series and
+distribution, ideally in an environment matching each target.
 
 During the build, `src/ip_audit_messages.mes` is compiled into the logging headers by
 `kea-msg-compiler`.
 
-CI builds both package formats on Ubuntu 24.04 and 26.04 and publishes them as workflow
-artifacts.
+CI builds DEBs on Ubuntu 24.04 (`noble`) and 26.04 (`resolute`), and builds the EL9 RPM in a
+Rocky Linux 9 container against EPEL's Kea packages. All package jobs use the version from
+the release tag and upload their artifacts.
+
+## Publishing releases to Cloudsmith
+
+Push a tag named `vMAJOR.MINOR.PATCH` (for example `v1.2.3`) to trigger the release pipeline.
+The pipeline runs the Ubuntu build/test matrix, builds the EL9 RPM, then publishes packages
+only after those jobs succeed:
+
+- Ubuntu 24.04 DEB to `ubuntu/noble`
+- Ubuntu 26.04 DEB to `ubuntu/resolute`
+- Enterprise Linux 9 RPM to `el/9`
+
+Configure these GitHub repository variables:
+
+| Variable | Value |
+| ---------- | ------- |
+| `CLOUDSMITH_WORKSPACE` | Cloudsmith workspace slug. |
+| `CLOUDSMITH_REPOSITORY` | Repository slug receiving release packages. |
+| `CLOUDSMITH_SERVICE_SLUG` | Dedicated Cloudsmith service-account slug. |
+
+Create a Cloudsmith service account with push access only to the target repository. Configure
+Cloudsmith OIDC trust for this GitHub repository and the `cloudsmith-release` GitHub
+environment, and protect that environment with the desired approval rule. The workflow uses
+Cloudsmith's OIDC GitHub Action and does not store a long-lived API key in GitHub. See the
+[Cloudsmith GitHub OIDC setup guide](https://docs.cloudsmith.com/authentication/setup-cloudsmith-to-authenticate-with-oidc-in-github-actions).
 
 ## Logging
 

@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
 
 concurrency:
@@ -30,12 +31,26 @@ jobs:
             build-essential cmake pkg-config \
             libssl-dev zlib1g-dev \
             kea-dev libzmq3-dev libboost-dev libgtest-dev \
-            kea-dhcp4-server iproute2 python3 rpm
+            kea-dhcp4-server iproute2 python3
           # The package starts a Kea instance on its default configuration; the integration test runs its own.
           sudo systemctl stop kea-dhcp4-server || true
 
+      - name: Determine package version
+        id: package_version
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Release tags must use vMAJOR.MINOR.PATCH (got $GITHUB_REF_NAME)" >&2
+              exit 1
+            fi
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="0.1.0"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DKEA_PREFIX=/usr
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DKEA_PREFIX=/usr -DKEA_IP_AUDIT_VERSION=${{ steps.package_version.outputs.version }}
 
       - name: Build
         run: cmake --build build --parallel
@@ -43,15 +58,14 @@ jobs:
       - name: Unit tests
         run: ctest --test-dir build --output-on-failure
 
-      - name: Build DEB and RPM packages
+      - name: Build DEB package
         run: |
           cpack --config build/CPackConfig.cmake -G DEB -B build/packages
-          cpack --config build/CPackConfig.cmake -G RPM -B build/packages
 
       - uses: actions/upload-artifact@v4
         with:
-          name: packages-${{ matrix.os }}
-          path: build/packages/*
+          name: deb-${{ matrix.os }}
+          path: build/packages/*.deb
           if-no-files-found: error
 
       - name: Install the hook
@@ -59,3 +73,105 @@ jobs:
 
       - name: Integration test (real Kea with a simulated relay)
         run: sudo bash tests/integration/run.sh
+
+  build-rpm-el9:
+    name: Build EL9 RPM package
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build-test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate release tag and determine package version
+        id: package_version
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tags must use vMAJOR.MINOR.PATCH (got $GITHUB_REF_NAME)" >&2
+            exit 1
+          fi
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build RPM inside Rocky Linux 9
+        env:
+          KEA_IP_AUDIT_VERSION: ${{ steps.package_version.outputs.version }}
+        run: |
+          docker run --rm \
+            -e KEA_IP_AUDIT_VERSION \
+            -e RPM_ARTIFACT_DIR=/src/rpm-artifacts \
+            -v "$GITHUB_WORKSPACE:/src" \
+            -w /src \
+            rockylinux:9 \
+            bash scripts/build-rpm-el9.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rpm-el9
+          path: rpm-artifacts/*.rpm
+          if-no-files-found: error
+
+  publish-cloudsmith:
+    name: Publish release packages to Cloudsmith
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-test, build-rpm-el9]
+    runs-on: ubuntu-24.04
+    environment: cloudsmith-release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: deb-ubuntu-24.04
+          path: packages/noble
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: deb-ubuntu-26.04
+          path: packages/resolute
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: rpm-el9
+          path: packages/el9
+
+      - name: Validate Cloudsmith settings
+        env:
+          CLOUDSMITH_WORKSPACE: ${{ vars.CLOUDSMITH_WORKSPACE }}
+          CLOUDSMITH_REPOSITORY: ${{ vars.CLOUDSMITH_REPOSITORY }}
+          CLOUDSMITH_SERVICE_SLUG: ${{ vars.CLOUDSMITH_SERVICE_SLUG }}
+        run: |
+          : "${CLOUDSMITH_WORKSPACE:?Set repository variable CLOUDSMITH_WORKSPACE}"
+          : "${CLOUDSMITH_REPOSITORY:?Set repository variable CLOUDSMITH_REPOSITORY}"
+          : "${CLOUDSMITH_SERVICE_SLUG:?Set repository variable CLOUDSMITH_SERVICE_SLUG}"
+
+      - name: Authenticate to Cloudsmith with OIDC
+        uses: cloudsmith-io/cloudsmith-cli-action@v3
+        with:
+          oidc-namespace: ${{ vars.CLOUDSMITH_WORKSPACE }}
+          oidc-service-slug: ${{ vars.CLOUDSMITH_SERVICE_SLUG }}
+          verify-auth: 'true'
+
+      - name: Push Debian and RPM packages
+        env:
+          CLOUDSMITH_WORKSPACE: ${{ vars.CLOUDSMITH_WORKSPACE }}
+          CLOUDSMITH_REPOSITORY: ${{ vars.CLOUDSMITH_REPOSITORY }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          noble_packages=(packages/noble/*.deb)
+          resolute_packages=(packages/resolute/*.deb)
+          el9_packages=(packages/el9/*.rpm)
+          ((${#noble_packages[@]} > 0))
+          ((${#resolute_packages[@]} > 0))
+          ((${#el9_packages[@]} > 0))
+
+          for package in "${noble_packages[@]}"; do
+            cloudsmith push deb "$CLOUDSMITH_WORKSPACE/$CLOUDSMITH_REPOSITORY/ubuntu/noble" "$package"
+          done
+          for package in "${resolute_packages[@]}"; do
+            cloudsmith push deb "$CLOUDSMITH_WORKSPACE/$CLOUDSMITH_REPOSITORY/ubuntu/resolute" "$package"
+          done
+          for package in "${el9_packages[@]}"; do
+            cloudsmith push rpm "$CLOUDSMITH_WORKSPACE/$CLOUDSMITH_REPOSITORY/el/9" "$package"
+          done

@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
-project(kea_ip_audit VERSION 0.1.0 LANGUAGES CXX)
+set(KEA_IP_AUDIT_VERSION "0.1.0" CACHE STRING "Version used in generated DEB and RPM packages")
+if(NOT KEA_IP_AUDIT_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
+    message(FATAL_ERROR "KEA_IP_AUDIT_VERSION must use MAJOR.MINOR.PATCH (got '${KEA_IP_AUDIT_VERSION}')")
+endif()
+project(kea_ip_audit VERSION "${KEA_IP_AUDIT_VERSION}" LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
