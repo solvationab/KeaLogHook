@@ -1,22 +1,27 @@
 # Roadmap: suggested improvements for ISP use
 
 Suggestions for hardening the hook and making it fit an ISP's traceability and compliance
-needs. Items 1, 2 and 5 are implemented (item 1 in part). They are grouped by theme; the
-suggested order of implementation is at the end.
+needs. Items are grouped by theme; subtasks use parent.subtask identifiers. Completed work is
+marked `[x]`, and planned work is marked `[ ]`. The suggested order of implementation is at
+the end.
 
 ## Reliability and performance
 
-1. **Tests and CI.** *Done:* unit tests for config validation, the formatters, the
-   `Template` engine, the record builder, the sinks and `AuditManager`; an integration test
-   with a real Kea and a simulated relay; and a GitHub Actions workflow that runs both (see
-   [operations.md](operations.md#testing)). *Remaining:* run CI against more Kea versions
-   and distributions, add sanitizer (ASan/UBSan) and `-Werror` builds, build the DEB/RPM
-   packages in CI, and add a multi-threaded stress test.
-2. **Non-blocking delivery.** *Done:* `AuditManager` now sends records to a bounded FIFO
-    queue and one sink worker; callouts do not wait for sink writes. `queue-size` defaults to
-    10,000 (maximum 1,000,000); when full, the newest record is dropped and the cumulative
-    count is logged on unload. Accepted records are drained during unload. See
-    [configuration.md](configuration.md#top-level-parameters).
+1. **Tests and CI.**
+     - [x] **1.1** Unit tests for config validation, the formatters, the `Template` engine, the record
+         builder, the sinks and `AuditManager`.
+     - [x] **1.2** Integration test with a real Kea and a simulated relay.
+     - [x] **1.3** GitHub Actions workflow that runs both (see [operations.md](operations.md#testing)).
+     - [ ] **1.4** Run CI against more Kea versions and distributions.
+     - [ ] **1.5** Add sanitizer (ASan/UBSan) and `-Werror` builds.
+     - [ ] **1.6** Build the DEB/RPM packages in CI.
+     - [ ] **1.7** Add a multi-threaded stress test.
+2. **Non-blocking delivery.**
+    - [x] **2.1** `AuditManager` sends records to a bounded FIFO queue and one sink worker; callouts
+         do not wait for sink writes. `queue-size` defaults to 10,000 (maximum 1,000,000); when
+         full, the newest record is dropped and the cumulative count is logged on unload.
+         Accepted records are drained during unload. See
+         [configuration.md](configuration.md#top-level-parameters).
 3. **Renewal noise reduction.** After an outage, tens of thousands of clients renew at
    once and every renewal produces a record. Add per-sink options such as "log renewals
    only when the MAC, option 82 or IP changed", or a rate limit. This needs a small
@@ -27,9 +32,10 @@ suggested order of implementation is at the end.
 
 ## Traceability coverage
 
-5. **DHCPv6 and prefix delegation.** *Done:* a DHCPv6 hook module records IA_NA, IA_TA and
-    IA_PD lease events, including DUID/IAID, delegated prefix length, relay interface-id and
-    remote-id. A separate library is built for `kea-dhcp6`.
+5. **DHCPv6 and prefix delegation.**
+    - [x] **5.1** DHCPv6 hook module records IA_NA, IA_TA and IA_PD lease events, including DUID/IAID,
+         delegated prefix length, relay interface-id and remote-id. A separate library is built
+         for `kea-dhcp6`.
 6. **Lease-delete event.** Kea's `deleted_leases4` argument of `leases4_committed` shows
    when a client's old address is dropped because it received a new one. That gives a clean
    end time for the old assignment.
