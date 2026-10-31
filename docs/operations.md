@@ -92,8 +92,10 @@ During the build, `src/ip_audit_messages.mes` is compiled into the logging heade
 `kea-msg-compiler`.
 
 CI builds DEBs on Ubuntu 24.04 (`noble`) and 26.04 (`resolute`), and builds the EL9 RPM in a
-Rocky Linux 9 container against EPEL's Kea packages. All package jobs use the version from
-the release tag and upload their artifacts.
+Rocky Linux 9 container against EPEL's Kea packages. The Ubuntu jobs run on branch pushes,
+pull requests, and version tags; non-release builds use version `0.1.0`. The EL9 RPM job runs
+only for valid version tags. All release artifacts use the version from the tag and are
+uploaded for the publishing job.
 
 ## Publishing releases to Cloudsmith
 
