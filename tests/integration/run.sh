@@ -77,7 +77,7 @@ cat > "$WORK/kea-dhcp4.conf" <<EOF
       }
     ],
     "loggers": [
-      { "name": "kea-dhcp4", "severity": "INFO", "output_options": [ { "output": "$KEA_LOG" } ] }
+      { "name": "kea-dhcp4", "severity": "INFO", "output_options": [ { "output": "stdout" } ] }
     ]
   }
 }
@@ -98,7 +98,7 @@ echo "Checking the configuration"
 "$WORK/kea-dhcp4" -t "$WORK/kea-dhcp4.conf"
 
 echo "Starting kea-dhcp4"
-"$WORK/kea-dhcp4" -c "$WORK/kea-dhcp4.conf" &
+"$WORK/kea-dhcp4" -c "$WORK/kea-dhcp4.conf" >"$KEA_LOG" 2>&1 &
 KEA_PID=$!
 
 for _ in $(seq 1 50); do
