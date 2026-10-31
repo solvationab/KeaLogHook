@@ -7,11 +7,14 @@
 #include <cc/data.h>
 
 #include <atomic>
+#include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <set>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
 namespace ip_audit {
@@ -45,12 +48,20 @@ private:
         std::string name;
         std::set<std::string> events;  // empty = all events
         std::unique_ptr<Sink> sink;
+        bool renewalsOnChange = false;
+        uint64_t renewalRateLimit = 0;
+        double renewalRateTokens = 0;
+        std::chrono::steady_clock::time_point renewalRateRefill;
+        std::unordered_map<std::string, std::string> renewalSignatures;
     };
 
     RecordQueue queue_;
     std::thread worker_;
     std::atomic<uint64_t> enqueueErrors_{0};
     std::vector<Entry> sinks_;
+
+    bool shouldDeliver(Entry& entry, const AuditRecord& record);
+    void rememberDelivery(Entry& entry, const AuditRecord& record) noexcept;
 };
 
 }

@@ -21,6 +21,18 @@ AuditRecord record(const std::string& event, const std::string& ip = "192.0.2.10
     return r;
 }
 
+AuditRecord renewalRecord(const std::string& ip, const std::string& mac,
+                          const std::string& circuitId) {
+    AuditRecord r = record("lease-renew", ip);
+    r.set("hw-address", mac);
+    r.set("client-id", "");
+    r.set("duid", "");
+    r.set("circuit-id", circuitId);
+    r.set("remote-id", "");
+    r.set("relay-suboptions", "");
+    return r;
+}
+
 std::string fileSink(const std::string& path, const std::string& extra = "") {
     return R"({"type":"file","path":")" + path + R"(")" + (extra.empty() ? "" : "," + extra) + "}";
 }
@@ -125,6 +137,53 @@ TEST(AuditManager, AppliesPerSinkEventFilter) {
     ASSERT_EQ(1u, readLines(dir.file("release.log")).size());
     EXPECT_NE(std::string::npos, readLines(dir.file("release.log"))[0].find("lease-release"));
     EXPECT_EQ(2u, readLines(dir.file("all.log")).size());
+}
+
+TEST(AuditManager, OptionalRenewalChangeFilterIsPerSink) {
+    TempDir dir;
+    auto manager = AuditManager::create(json(sinks({
+        fileSink(dir.file("filtered.log"),
+                 R"("renewals-on-change":true,"renewal-rate-limit":100)"),
+        fileSink(dir.file("all.log")),
+    })));
+
+    manager->publish(renewalRecord("192.0.2.10", "aa:bb", "circuit-a"));
+    manager->publish(renewalRecord("192.0.2.10", "aa:bb", "circuit-a"));
+    manager->publish(renewalRecord("192.0.2.10", "cc:dd", "circuit-a"));
+    manager->publish(renewalRecord("192.0.2.10", "cc:dd", "circuit-b"));
+    manager->publish(renewalRecord("192.0.2.11", "cc:dd", "circuit-b"));
+    manager->publish(record("lease-assign", "192.0.2.10"));
+    manager.reset();
+
+    EXPECT_EQ(5u, readLines(dir.file("filtered.log")).size());
+    EXPECT_EQ(6u, readLines(dir.file("all.log")).size());
+}
+
+TEST(AuditManager, OptionalRenewalRateLimitIsPerSinkAndRenewalsOnly) {
+    TempDir dir;
+    auto manager = AuditManager::create(json(sinks({
+        fileSink(dir.file("limited.log"), R"("renewal-rate-limit":1)"),
+        fileSink(dir.file("all.log")),
+    })));
+
+    for (int i = 0; i < 5; ++i) {
+        manager->publish(renewalRecord("192.0.2." + std::to_string(i), "aa:bb", "circuit-a"));
+    }
+    manager->publish(record("lease-assign"));
+    manager.reset();
+
+    EXPECT_EQ(2u, readLines(dir.file("limited.log")).size());
+    EXPECT_EQ(6u, readLines(dir.file("all.log")).size());
+}
+
+TEST(AuditManager, RejectsInvalidRenewalOptions) {
+    TempDir dir;
+    EXPECT_NE(std::string::npos,
+              errorOf(sinks({fileSink(dir.file("a.log"), R"("renewals-on-change":"true")")}))
+                  .find("must be a boolean"));
+    EXPECT_NE(std::string::npos,
+              errorOf(sinks({fileSink(dir.file("b.log"), R"("renewal-rate-limit":-1)")}))
+                  .find("between 0 and 1000000"));
 }
 
 TEST(AuditManager, RecordWithoutEventOnlyReachesUnfilteredSinks) {

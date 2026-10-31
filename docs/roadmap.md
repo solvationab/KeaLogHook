@@ -22,10 +22,11 @@ the end.
          full, the newest record is dropped and the cumulative count is logged on unload.
          Accepted records are drained during unload. See
          [configuration.md](configuration.md#top-level-parameters).
-3. **Renewal noise reduction.** After an outage, tens of thousands of clients renew at
-   once and every renewal produces a record. Add per-sink options such as "log renewals
-   only when the MAC, option 82 or IP changed", or a rate limit. This needs a small
-   in-memory cache keyed by IP address.
+3. **Renewal noise reduction.**
+     - [x] **3.1** Optional per-sink `renewals-on-change` suppresses unchanged renewals by IP,
+         client identity and relay metadata. The per-sink cache is bounded to 100,000 IPs.
+     - [x] **3.2** Optional per-sink `renewal-rate-limit` caps `lease-renew` records per second;
+         `0` disables it. Both settings default to disabled.
 4. **Spool and retry for network sinks.** Write to local disk first and ship from there, so
    a remote outage loses nothing. ZeroMQ PUB is lossy by design, so the file sink should
    remain the authoritative record.
@@ -89,5 +90,5 @@ the end.
 
 ## Suggested order
 
-Continue with items 3, 6 and 14 (item 1 is largely done). They harden the core without changing its design.
+Continue with items 6 and 14 (item 1 is largely done). They harden the core without changing its design.
 Then add retention (10), HA identity (8), metrics (15) and a database sink (18).

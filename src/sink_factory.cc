@@ -29,7 +29,8 @@ std::unique_ptr<Sink> SinkFactory::create(const isc::data::ConstElementPtr& cfg)
 }
 
 std::set<std::string> SinkFactory::allowedKeys(const std::set<std::string>& own) {
-    std::set<std::string> keys = {"type", "name", "events", "format"};
+    std::set<std::string> keys = {"type", "name", "events", "format", "renewals-on-change",
+                                  "renewal-rate-limit"};
     keys.insert(own.begin(), own.end());
     return keys;
 }

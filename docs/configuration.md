@@ -38,6 +38,19 @@ prevent delivery to other sinks.
 
 Unknown parameters are rejected and prevent the library from loading.
 
+The following optional parameters can be used on either sink type:
+
+- `renewals-on-change` (boolean, default `false`) suppresses an unchanged `lease-renew` for
+  this sink. A renewal is logged when its IP is first seen or its MAC/client identity or relay
+  metadata changes. The per-sink cache holds up to 100,000 IP addresses; when full, a cached
+  entry is evicted, so a later renewal for it may be logged again.
+- `renewal-rate-limit` (integer, `0`-`1000000`, default `0`) sets the maximum `lease-renew`
+  records per second for this sink. It uses a token bucket with a burst capacity equal to the
+  limit; `0` disables rate limiting. Other event types are unaffected.
+
+Both settings are disabled when omitted, preserving the default behavior of logging every
+renewal.
+
 ## Formats
 
 The `format` parameter can be omitted (JSON with all non-empty fields), a string
