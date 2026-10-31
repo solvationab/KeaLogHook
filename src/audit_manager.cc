@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <chrono>
 #include <stdexcept>
+#include <stats/stats_mgr.h>
 #include <vector>
 
 using isc::data::ConstElementPtr;
@@ -37,7 +38,8 @@ std::string renewalSignature(const AuditRecord& record) {
 
 }
 
-AuditManager::AuditManager(size_t queueCapacity) : queue_(queueCapacity) {
+AuditManager::AuditManager(size_t queueCapacity, std::string statisticsPrefix)
+    : queue_(queueCapacity), statisticsPrefix_(std::move(statisticsPrefix)) {
     if (queueCapacity == 0) {
         throw ConfigError("parameter 'queue-size' must be greater than zero");
     }
@@ -48,9 +50,64 @@ AuditManager::~AuditManager() {
     if (worker_.joinable()) {
         worker_.join();
     }
+    if (statisticsWorker_.joinable()) {
+        {
+            std::lock_guard<std::mutex> lock(statisticsMutex_);
+            stopStatistics_ = true;
+        }
+        statisticsCondition_.notify_one();
+        statisticsWorker_.join();
+    }
+    clearStatistics();
     const uint64_t dropped = droppedRecords();
     if (dropped > 0) {
         LOG_WARN(ip_audit_logger, IP_AUDIT_QUEUE_OVERFLOW).arg(dropped);
+    }
+}
+
+void AuditManager::runStatistics() noexcept {
+    while (true) {
+        updateStatistics();
+        std::unique_lock<std::mutex> lock(statisticsMutex_);
+        if (statisticsCondition_.wait_for(lock, std::chrono::seconds(1),
+                                          [this] { return stopStatistics_; })) {
+            return;
+        }
+    }
+}
+
+void AuditManager::updateStatistics() noexcept {
+    try {
+        const auto stats = statistics();
+        auto& statsManager = isc::stats::StatsMgr::instance();
+        statsManager.setValue(statisticsPrefix_ + "-queue-depth",
+                              static_cast<int64_t>(stats.queueDepth));
+        statsManager.setValue(statisticsPrefix_ + "-queue-capacity",
+                              static_cast<int64_t>(stats.queueCapacity));
+        statsManager.setValue(statisticsPrefix_ + "-sink-count",
+                              static_cast<int64_t>(stats.sinkCount));
+        statsManager.setValue(statisticsPrefix_ + "-records-dropped",
+                              static_cast<int64_t>(stats.droppedRecords));
+        statsManager.setValue(statisticsPrefix_ + "-sink-writes",
+                              static_cast<int64_t>(stats.sinkWrites));
+        statsManager.setValue(statisticsPrefix_ + "-sink-write-failures",
+                              static_cast<int64_t>(stats.sinkWriteFailures));
+    } catch (...) {
+        // Metrics are best effort and must never disrupt DHCP or sink delivery.
+    }
+}
+
+void AuditManager::clearStatistics() noexcept {
+    if (statisticsPrefix_.empty()) {
+        return;
+    }
+    try {
+        auto& statsManager = isc::stats::StatsMgr::instance();
+        for (const char* suffix : {"queue-depth", "queue-capacity", "sink-count",
+                                   "records-dropped", "sink-writes", "sink-write-failures"}) {
+            statsManager.del(statisticsPrefix_ + "-" + suffix);
+        }
+    } catch (...) {
     }
 }
 
@@ -86,13 +143,15 @@ AuditManager::ReopenResult AuditManager::reopenSinks() {
 }
 
 std::unique_ptr<AuditManager> AuditManager::create(const ConstElementPtr& sinks,
-                                                  size_t queueCapacity) {
+                                                  size_t queueCapacity,
+                                                  std::string statisticsPrefix) {
     if (!sinks || sinks->getType() != Element::list || sinks->listValue().empty()) {
         throw ConfigError("parameter 'sinks' must be a non-empty list of sink objects");
     }
 
     SinkFactory factory;
-    auto manager = std::unique_ptr<AuditManager>(new AuditManager(queueCapacity));
+    auto manager = std::unique_ptr<AuditManager>(
+        new AuditManager(queueCapacity, std::move(statisticsPrefix)));
     size_t index = 0;
     for (const auto& cfg : sinks->listValue()) {
         Entry entry;
@@ -122,6 +181,9 @@ std::unique_ptr<AuditManager> AuditManager::create(const ConstElementPtr& sinks,
         ++index;
     }
     manager->worker_ = std::thread(&AuditManager::run, manager.get());
+    if (!manager->statisticsPrefix_.empty()) {
+        manager->statisticsWorker_ = std::thread(&AuditManager::runStatistics, manager.get());
+    }
     return manager;
 }
 

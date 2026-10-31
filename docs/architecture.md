@@ -42,7 +42,7 @@ sequenceDiagram
 | `src/callouts6.cc` | DHCPv6 library entry points and callouts. |
 | `src/record_builder.*` | Builds records from `Pkt4`/`Lease4` or `Pkt6`/`Lease6`; adds the local server host name and decodes DHCPv4 client classes, option 82, DHCPv6 relay options and subnet `user-context` metadata. |
 | `src/audit_record.h` | The `AuditRecord` type plus the lists of known field and event names. |
-| `src/audit_manager.*` | Parses sinks, owns the bounded record queue and worker, applies per-sink event and renewal policies, and isolates sink failures. |
+| `src/audit_manager.*` | Parses sinks, owns the bounded record queue and workers, applies per-sink event and renewal policies, publishes Kea statistics, and isolates sink failures. |
 | `src/record_queue.*` | Bounded FIFO queue; rejects new records when full and drains accepted records on shutdown. |
 | `src/sink.h` | The abstract `Sink` interface. |
 | `src/sink_factory.*` | Maps the `type` string of a sink to its implementation. |

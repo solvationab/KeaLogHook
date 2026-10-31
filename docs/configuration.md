@@ -43,6 +43,24 @@ Example command payloads are `{"command":"ip-audit-reopen"}` and
 `{"command":"ip-audit-stats"}`. Responses use Kea's standard `result`, `text`, and
 `arguments` fields.
 
+## Kea statistics
+
+Each hook library publishes its metrics asynchronously once per second through Kea's
+statistics manager. Names are protocol-specific: `ip-audit-dhcp4-<metric>` or
+`ip-audit-dhcp6-<metric>`. Kea's statistics manager controls sample retention.
+
+| Metric suffix | Meaning |
+|---------------|---------|
+| `queue-depth` | Records currently waiting in the bounded queue; excludes the record being written. |
+| `queue-capacity` | Configured queue size. |
+| `sink-count` | Number of configured sinks. |
+| `records-dropped` | Cumulative records rejected by the full queue or enqueue errors. |
+| `sink-writes` | Cumulative successful writes across all sinks. |
+| `sink-write-failures` | Cumulative sink write failures. |
+
+These observations are removed when the hook unloads. They can be collected through Kea's
+`statistic-get` control command or a Kea statistics exporter.
+
 ## Parameters common to all sinks
 
 | Parameter | Type | Default | Description |

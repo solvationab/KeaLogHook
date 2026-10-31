@@ -3,7 +3,7 @@
 ## Building
 
 Requirements: Kea development headers and libraries (`kea-dhcpsrv`, `kea-dhcp++`,
-`kea-hooks`, `kea-log`, `kea-util`, `kea-cc`, `kea-exceptions`), `kea-msg-compiler`,
+`kea-hooks`, `kea-log`, `kea-stats`, `kea-util`, `kea-cc`, `kea-exceptions`), `kea-msg-compiler`,
 libzmq (found through `pkg-config`), Boost headers, OpenSSL Crypto and zlib development files,
 a C++17 compiler, CMake 3.16+.
 
@@ -34,8 +34,8 @@ ctest --test-dir build --output-on-failure
 They cover config validation, the formatters and the `Template` engine, the record builder
 (including IPv4 client classes, option 82, subnet context and DHCPv6 IA/relay fields), the file and ZeroMQ sinks, and
 `AuditManager` (event filters including `lease-delete`, renewal filtering and rate limiting,
-queue overflow accounting,
-shutdown draining and sink failure isolation). The file sink failure test uses `/dev/full`.
+queue overflow accounting, StatsMgr metrics, shutdown draining and sink failure isolation).
+The file sink failure test uses `/dev/full`.
 
 The integration test starts a real `kea-dhcp4` with the installed hook and drives it with a
 simulated relay agent (`tests/integration/relay_client.py`) in a separate network namespace.
@@ -43,6 +43,14 @@ The relay performs DISCOVER, REQUEST, a renewal and a RELEASE with option 82, an
 `check_audit_log.py` verifies assignment, renewal, lease-delete and release records. It needs
 root, `iproute2`, `python3` and
 `kea-dhcp4`, and uses a veth pair named `ipa-kea` / `ipa-relay` and the network `10.99.0.0/24`.
+
+## Statistics
+
+The hook publishes queue depth/capacity, sink count, dropped records, successful sink writes,
+and write failures to Kea's statistics manager once per second. Kea controls how many samples
+are retained. Metrics are prefixed with
+`ip-audit-dhcp4-` or `ip-audit-dhcp6-`; they are removed when the corresponding hook unloads.
+Collect them with Kea's `statistic-get` command or a compatible statistics exporter.
 
 ```sh
 sudo cmake --install build

@@ -27,7 +27,7 @@ find_path(KEA_INCLUDE_DIR NAMES hooks/hooks.h HINTS ${KEA_PREFIX} PATH_SUFFIXES 
 find_program(KEA_MSG_COMPILER NAMES kea-msg-compiler HINTS ${KEA_PREFIX}/sbin ${KEA_PREFIX}/bin REQUIRED)
 
 set(KEA_LIBS "")
-foreach(lib kea-dhcpsrv kea-dhcp++ kea-hooks kea-log kea-util kea-asiolink kea-cc kea-exceptions)
+foreach(lib kea-dhcpsrv kea-dhcp++ kea-hooks kea-log kea-stats kea-util kea-asiolink kea-cc kea-exceptions)
     set(lib_names ${lib})
     if("${lib}" STREQUAL "kea-dhcp++")
         list(APPEND lib_names kea-dhcp)

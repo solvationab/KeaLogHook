@@ -112,7 +112,8 @@ int load(LibraryHandle& handle) {
         int64_t queueSize = ip_audit::optInt(handle.getParameters(), "queue-size",
                                              ip_audit::AuditManager::kDefaultQueueCapacity,
                                              1, 1000000);
-        manager = ip_audit::AuditManager::create(handle.getParameter("sinks"), queueSize);
+        manager = ip_audit::AuditManager::create(handle.getParameter("sinks"), queueSize,
+                             "ip-audit-dhcp6");
         handle.registerCallout("lease6_renew", lease6_renew);
         handle.registerCallout("lease6_rebind", lease6_rebind);
         handle.registerCallout("leases6_committed", leases6_committed);

@@ -5,14 +5,18 @@ import json
 import os
 import socket
 import sys
+import time
 
 
-def command(socket_path, name):
+def command(socket_path, name, arguments=None):
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     client.settimeout(5)
     try:
         client.connect(socket_path)
-        client.sendall(json.dumps({"command": name}).encode("utf-8") + b"\n")
+        request = {"command": name}
+        if arguments is not None:
+            request["arguments"] = arguments
+        client.sendall(json.dumps(request).encode("utf-8") + b"\n")
         response = bytearray()
         decoder = json.JSONDecoder()
         while True:
@@ -52,6 +56,20 @@ def main():
     for key, expected in expected_stats.items():
         if stats.get(key) != expected:
             raise RuntimeError("%s is %r, expected %r" % (key, stats.get(key), expected))
+
+    metric_name = "ip-audit-dhcp4-sink-writes"
+    deadline = time.monotonic() + 5
+    while True:
+        metric_response = command(socket_path, "statistic-get", {"name": metric_name})
+        samples = metric_response.get("arguments", {}).get(metric_name, [])
+        if metric_response.get("result") == 0 and any(
+            isinstance(sample, list) and sample and sample[0] == 4 for sample in samples
+        ):
+            break
+        if time.monotonic() >= deadline:
+            raise RuntimeError("Kea statistic-get did not return four sink writes: " +
+                               repr(metric_response))
+        time.sleep(0.1)
 
     rotated_log = audit_log + ".external"
     os.rename(audit_log, rotated_log)

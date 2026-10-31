@@ -3,6 +3,7 @@
 #include "config_util.h"
 #include "test_util.h"
 
+#include <stats/stats_mgr.h>
 #include <sys/stat.h>
 
 #include <chrono>
@@ -57,8 +58,8 @@ std::string errorOf(const std::string& sinksJson) {
 }
 
 template <typename Predicate>
-bool waitFor(Predicate predicate) {
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+bool waitFor(Predicate predicate, std::chrono::seconds timeout = std::chrono::seconds(1)) {
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
     while (!predicate() && std::chrono::steady_clock::now() < deadline) {
         std::this_thread::yield();
     }
@@ -125,6 +126,42 @@ TEST(AuditManager, ReportsRuntimeStatistics) {
     EXPECT_EQ(1u, stats.sinkWrites);
     EXPECT_EQ(0u, stats.sinkWriteFailures);
     EXPECT_EQ(1u, readLines(dir.file("a.log")).size());
+}
+
+TEST(AuditManager, PublishesAndRemovesKeaStatistics) {
+    TempDir dir;
+    const std::string prefix = "ip-audit-test";
+    auto& statsManager = isc::stats::StatsMgr::instance();
+    auto manager = AuditManager::create(json(sinks({fileSink(dir.file("a.log"))})), 17, prefix);
+
+    const std::vector<std::string> metricNames = {
+        "queue-depth", "queue-capacity", "sink-count", "records-dropped", "sink-writes",
+        "sink-write-failures"};
+    ASSERT_TRUE(waitFor([&] {
+        for (const auto& metric : metricNames) {
+            if (!statsManager.getObservation(prefix + "-" + metric)) {
+                return false;
+            }
+        }
+        return true;
+    }));
+    EXPECT_EQ(0, statsManager.getObservation(prefix + "-queue-depth")->getInteger().first);
+    EXPECT_EQ(17, statsManager.getObservation(prefix + "-queue-capacity")->getInteger().first);
+    EXPECT_EQ(1, statsManager.getObservation(prefix + "-sink-count")->getInteger().first);
+
+    manager->publish(record("lease-assign"));
+    ASSERT_TRUE(waitFor([&] { return manager->statistics().sinkWrites == 1; }));
+    const std::string sinkWritesName = prefix + "-sink-writes";
+    ASSERT_TRUE(waitFor([&] {
+        const auto observation = statsManager.getObservation(sinkWritesName);
+        return observation && observation->getInteger().first == 1;
+    }, std::chrono::seconds(3)));
+    EXPECT_EQ(0, statsManager.getObservation(prefix + "-records-dropped")->getInteger().first);
+    EXPECT_EQ(0, statsManager.getObservation(prefix + "-sink-write-failures")->getInteger().first);
+
+    manager.reset();
+    EXPECT_EQ(nullptr, statsManager.getObservation(prefix + "-queue-capacity"));
+    EXPECT_EQ(nullptr, statsManager.getObservation(sinkWritesName));
 }
 
 TEST(AuditManager, ReopensFileSinksAfterExternalRotation) {

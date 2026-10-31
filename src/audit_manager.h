@@ -10,7 +10,9 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <condition_variable>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <string>
 #include <thread>
@@ -42,7 +44,8 @@ public:
     // sinks is the hook's "sinks" parameter: a non-empty list of sink objects.
     static std::unique_ptr<AuditManager> create(
         const isc::data::ConstElementPtr& sinks,
-        size_t queueCapacity = kDefaultQueueCapacity);
+        size_t queueCapacity = kDefaultQueueCapacity,
+        std::string statisticsPrefix = "");
 
     ~AuditManager();
 
@@ -58,8 +61,11 @@ public:
     void publish(AuditRecord record) noexcept;
 
 private:
-    explicit AuditManager(size_t queueCapacity);
+    AuditManager(size_t queueCapacity, std::string statisticsPrefix);
     void run();
+    void runStatistics() noexcept;
+    void updateStatistics() noexcept;
+    void clearStatistics() noexcept;
     void deliver(const AuditRecord& record) noexcept;
 
     struct Entry {
@@ -79,6 +85,11 @@ private:
     std::atomic<uint64_t> sinkWrites_{0};
     std::atomic<uint64_t> sinkWriteFailures_{0};
     std::vector<Entry> sinks_;
+    std::string statisticsPrefix_;
+    std::mutex statisticsMutex_;
+    std::condition_variable statisticsCondition_;
+    bool stopStatistics_ = false;
+    std::thread statisticsWorker_;
 
     bool shouldDeliver(Entry& entry, const AuditRecord& record);
     void rememberDelivery(Entry& entry, const AuditRecord& record) noexcept;

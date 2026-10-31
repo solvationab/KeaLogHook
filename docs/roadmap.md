@@ -71,9 +71,9 @@ the end.
 14. **Reopen and control commands.**
     - [x] **14.1** Register `ip-audit-reopen` to reopen file sinks after external rotation.
     - [x] **14.2** Register `ip-audit-stats` for queue and sink write counters.
-15. **Metrics.** Expose counters (records written, failed, dropped, queue depth) through
-    Kea's statistics manager so they can be scraped, for example with a Kea Prometheus
-    exporter.
+15. **Metrics.**
+    - [x] **15.1** Publish queue depth/capacity, sink count, dropped records, writes and failures through Kea's statistics manager.
+    - [x] **15.2** Publish protocol-specific metric names and remove observations on unload.
 16. **Config dry-run.** A small CLI that validates the `parameters` JSON without starting
     Kea, for use in deployment pipelines.
 17. **Operations files.** Ship a sample `logrotate` configuration, a `systemd` drop-in and
@@ -94,5 +94,5 @@ the end.
 
 ## Suggested order
 
-Continue with metrics (15) and a database sink (18), extending visibility and downstream
-integration after the core operational controls are in place.
+Continue with a database sink (18), extending downstream integration after the core
+operational controls and metrics are in place.
