@@ -12,12 +12,12 @@ the end.
          builder, the sinks and `AuditManager`.
      - [x] **1.2** Integration test with a real Kea and a simulated relay.
      - [x] **1.3** GitHub Actions workflow that runs both (see [operations.md](operations.md#testing)).
-     - [ ] **1.4** Run CI against more Kea versions and distributions.
+     - [ ] **1.4** Run CI against more Kea versions and distributions, including Ubuntu 26.04.
      - [ ] **1.5** Add sanitizer (ASan/UBSan) and `-Werror` builds.
      - [ ] **1.6** Build the DEB/RPM packages in CI.
      - [ ] **1.7** Add a multi-threaded stress test.
 2. **Non-blocking delivery.**
-    - [x] **2.1** `AuditManager` sends records to a bounded FIFO queue and one sink worker; callouts
+     - [x] **2.1** `AuditManager` sends records to a bounded FIFO queue and one sink worker; callouts
          do not wait for sink writes. `queue-size` defaults to 10,000 (maximum 1,000,000); when
          full, the newest record is dropped and the cumulative count is logged on unload.
          Accepted records are drained during unload. See
@@ -33,7 +33,7 @@ the end.
 ## Traceability coverage
 
 5. **DHCPv6 and prefix delegation.**
-    - [x] **5.1** DHCPv6 hook module records IA_NA, IA_TA and IA_PD lease events, including DUID/IAID,
+     - [x] **5.1** DHCPv6 hook module records IA_NA, IA_TA and IA_PD lease events, including DUID/IAID,
          delegated prefix length, relay interface-id and remote-id. A separate library is built
          for `kea-dhcp6`.
 6. **Lease-delete event.** Kea's `deleted_leases4` argument of `leases4_committed` shows
