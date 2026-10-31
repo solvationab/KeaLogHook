@@ -25,6 +25,9 @@ The bounded queue keeps slow sinks off the DHCP processing path. Records are dro
 the queue fills; the cumulative count is logged when the hook unloads. The default queue
 capacity is 10,000 records and can be changed with `queue-size`.
 
+Optional per-sink renewal controls can suppress unchanged renewals or cap the renewal rate;
+both are disabled by default. See [docs/configuration.md](docs/configuration.md).
+
 Sinks are pluggable: new ways of storing records can be added without touching the
 hook logic (see [docs/extending.md](docs/extending.md)). Everything is controlled from
 the hook `parameters` in the Kea configuration; no recompilation is needed to change
@@ -37,8 +40,8 @@ flowchart LR
     C --> B[record builder]
     C6 --> B
     B --> M[AuditManager]
-    M -->|event filter| S1[file sink]
-    M -->|event filter| S2[zeromq sink]
+    M -->|event and renewal policies| S1[file sink]
+    M -->|event and renewal policies| S2[zeromq sink]
     S1 --> F[(log file)]
     S2 --> Z[ZeroMQ subscribers]
 ```

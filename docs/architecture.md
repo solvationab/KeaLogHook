@@ -24,8 +24,13 @@ sequenceDiagram
     Mgr-->>Callout: return
     Worker->>Queue: dequeue
     loop each subscribed sink
+      Worker->>Worker: Apply per-sink renewal policies
+      alt accepted
       Worker->>Sink: write(record)
         Sink->>Sink: Formatter::format(record)
+      else unchanged or rate-limited renewal
+        Worker-->>Worker: Skip sink write
+      end
     end
 ```
 
@@ -37,7 +42,7 @@ sequenceDiagram
 | `src/callouts6.cc` | DHCPv6 library entry points and callouts. |
 | `src/record_builder.*` | Builds records from `Pkt4`/`Lease4` or `Pkt6`/`Lease6`; decodes option 82 and DHCPv6 relay options. |
 | `src/audit_record.h` | The `AuditRecord` type plus the lists of known field and event names. |
-| `src/audit_manager.*` | Parses sinks, owns the bounded record queue and worker, applies per-sink event filters and isolates sink failures. |
+| `src/audit_manager.*` | Parses sinks, owns the bounded record queue and worker, applies per-sink event and renewal policies, and isolates sink failures. |
 | `src/record_queue.*` | Bounded FIFO queue; rejects new records when full and drains accepted records on shutdown. |
 | `src/sink.h` | The abstract `Sink` interface. |
 | `src/sink_factory.*` | Maps the `type` string of a sink to its implementation. |

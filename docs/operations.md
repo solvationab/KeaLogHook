@@ -32,8 +32,8 @@ ctest --test-dir build --output-on-failure
 
 They cover config validation, the formatters and the `Template` engine, the record builder
 (including IPv4 option 82 and DHCPv6 IA/relay fields), the file and ZeroMQ sinks, and
-`AuditManager` (event filters, queue overflow accounting, shutdown draining and sink failure
-isolation). The file sink failure test uses `/dev/full`.
+`AuditManager` (event and renewal filters, renewal rate limiting, queue overflow accounting,
+shutdown draining and sink failure isolation). The file sink failure test uses `/dev/full`.
 
 The integration test starts a real `kea-dhcp4` with the installed hook and drives it with a
 simulated relay agent (`tests/integration/relay_client.py`) in a separate network namespace.
@@ -46,8 +46,8 @@ sudo cmake --install build
 sudo bash tests/integration/run.sh
 ```
 
-Both run in CI on every push and pull request (`.github/workflows/ci.yml`), against the Kea
-version packaged in Ubuntu 24.04 (2.4.x).
+Both run in CI on every push and pull request (`.github/workflows/ci.yml`) on Ubuntu 24.04
+and 26.04, using each runner's packaged Kea version.
 
 ## Building install packages
 
@@ -76,6 +76,9 @@ series and distribution, ideally in a container or CI job matching each target.
 
 During the build, `src/ip_audit_messages.mes` is compiled into the logging headers by
 `kea-msg-compiler`.
+
+CI builds both package formats on Ubuntu 24.04 and 26.04 and publishes them as workflow
+artifacts.
 
 ## Logging
 
