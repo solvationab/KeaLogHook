@@ -37,9 +37,10 @@ the end.
      - [x] **5.1** DHCPv6 hook module records IA_NA, IA_TA and IA_PD lease events, including DUID/IAID,
          delegated prefix length, relay interface-id and remote-id. A separate library is built
          for `kea-dhcp6`.
-6. **Lease-delete event.** Kea's `deleted_leases4` argument of `leases4_committed` shows
-   when a client's old address is dropped because it received a new one. That gives a clean
-   end time for the old assignment.
+6. **Lease-delete event.**
+     - [x] **6.1** Emit `lease-delete` for every old lease in `deleted_leases4` at
+         `leases4_committed`. The record describes the deleted lease and its timestamp marks
+         the end of the old assignment.
 7. **More fields.** Vendor class (option 60), user class (option 77), the relay-agent
    flags and vendor-specific sub-options of option 82, and subnet metadata taken from
    Kea's `user-context` (for example POP or site name).
@@ -90,5 +91,5 @@ the end.
 
 ## Suggested order
 
-Continue with items 6 and 14 (item 1 is largely done). They harden the core without changing its design.
+Continue with item 14 (item 1 is largely done). It hardens the core without changing its design.
 Then add retention (10), HA identity (8), metrics (15) and a database sink (18).

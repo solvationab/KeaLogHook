@@ -11,7 +11,8 @@ It is intended for ISPs that need to trace an IP address back to a subscriber
 
 The DHCPv4 and DHCPv6 libraries build an *audit record* for lease assignment, renewal,
 release, decline and expiry events and queue it for asynchronous delivery to configurable
-**sinks**. DHCPv6 records include IA_NA, IA_TA and IA_PD details, DUID/IAID, delegated
+**sinks**. DHCPv4 also records deleted leases when a client receives a new address. DHCPv6
+records include IA_NA, IA_TA and IA_PD details, DUID/IAID, delegated
 prefix length, and relay interface-id and remote-id data.
 
 Two sinks are included:

@@ -32,13 +32,15 @@ ctest --test-dir build --output-on-failure
 
 They cover config validation, the formatters and the `Template` engine, the record builder
 (including IPv4 option 82 and DHCPv6 IA/relay fields), the file and ZeroMQ sinks, and
-`AuditManager` (event and renewal filters, renewal rate limiting, queue overflow accounting,
+`AuditManager` (event filters including `lease-delete`, renewal filtering and rate limiting,
+queue overflow accounting,
 shutdown draining and sink failure isolation). The file sink failure test uses `/dev/full`.
 
 The integration test starts a real `kea-dhcp4` with the installed hook and drives it with a
 simulated relay agent (`tests/integration/relay_client.py`) in a separate network namespace.
 The relay performs DISCOVER, REQUEST, a renewal and a RELEASE with option 82, and
-`check_audit_log.py` verifies the resulting records. It needs root, `iproute2`, `python3` and
+`check_audit_log.py` verifies assignment, renewal, lease-delete and release records. It needs
+root, `iproute2`, `python3` and
 `kea-dhcp4`, and uses a veth pair named `ipa-kea` / `ipa-relay` and the network `10.99.0.0/24`.
 
 ```sh

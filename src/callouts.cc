@@ -36,11 +36,10 @@ int lease4_renew(CalloutHandle& handle) {
 int leases4_committed(CalloutHandle& handle) {
     Pkt4Ptr query;
     Lease4CollectionPtr leases;
+    Lease4CollectionPtr deletedLeases;
     handle.getArgument("query4", query);
     handle.getArgument("leases4", leases);
-    if (!leases) {
-        return 0;
-    }
+    handle.getArgument("deleted_leases4", deletedLeases);
 
     bool renewal = false;
     try {
@@ -48,8 +47,15 @@ int leases4_committed(CalloutHandle& handle) {
     } catch (const NoSuchCalloutContext&) {
     }
 
-    for (const auto& lease : *leases) {
-        publish(renewal ? "lease-renew" : "lease-assign", query, lease);
+    if (leases) {
+        for (const auto& lease : *leases) {
+            publish(renewal ? "lease-renew" : "lease-assign", query, lease);
+        }
+    }
+    if (deletedLeases) {
+        for (const auto& lease : *deletedLeases) {
+            publish("lease-delete", query, lease);
+        }
     }
     return 0;
 }

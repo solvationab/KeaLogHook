@@ -58,7 +58,7 @@ sequenceDiagram
 
 | Hook point | Event emitted | Notes |
 |------------|---------------|-------|
-| `leases4_committed` | `lease-assign` or `lease-renew` | One record per committed lease. |
+| `leases4_committed` | `lease-assign`, `lease-renew` or `lease-delete` | Records committed leases and each old lease in the `deleted_leases4` argument. |
 | `lease4_renew` | - | Only sets a flag on the packet's callout context so that `leases4_committed` can emit `lease-renew` instead of `lease-assign`. |
 | `lease4_release` | `lease-release` | Triggered by DHCPRELEASE. |
 | `lease4_decline` | `lease-decline` | Triggered by DHCPDECLINE. |

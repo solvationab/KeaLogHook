@@ -6,6 +6,7 @@
 |-------|--------------|
 | `lease-assign` | A lease was committed for a client that did not have one (DHCPACK or DHCPv6 Reply). |
 | `lease-renew` | An existing lease was renewed or rebound. |
+| `lease-delete` | An old DHCPv4 lease was deleted when the client's new lease was committed. The record describes the deleted lease, and its timestamp marks the deletion. |
 | `lease-release` | The client released its lease. |
 | `lease-decline` | The client declined its lease. |
 | `lease-expire` | The server reclaimed an expired lease. No packet or relay information is available. |

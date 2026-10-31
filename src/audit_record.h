@@ -23,7 +23,8 @@ inline const std::vector<std::string>& knownFieldNames() {
 
 inline const std::vector<std::string>& knownEventNames() {
     static const std::vector<std::string> names = {
-        "lease-assign", "lease-renew", "lease-release", "lease-decline", "lease-expire"};
+        "lease-assign", "lease-renew", "lease-delete", "lease-release", "lease-decline",
+        "lease-expire"};
     return names;
 }
 

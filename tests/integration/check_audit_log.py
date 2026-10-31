@@ -6,7 +6,7 @@ import json
 import sys
 import time
 
-EXPECTED_EVENTS = ("lease-assign", "lease-renew", "lease-release")
+EXPECTED_EVENTS = ("lease-assign", "lease-renew", "lease-delete", "lease-release")
 
 
 def load(path):

@@ -126,7 +126,7 @@ select events or any other topic structure you build with the `topic` template.
     {
       "type": "file",
       "name": "audit-file",
-      "events": ["lease-assign", "lease-renew", "lease-release"],
+      "events": ["lease-assign", "lease-renew", "lease-delete", "lease-release"],
       "path": "/var/log/kea/ip-audit.log",
       "max-size": 104857600,
       "max-files": 10

@@ -139,6 +139,20 @@ TEST(AuditManager, AppliesPerSinkEventFilter) {
     EXPECT_EQ(2u, readLines(dir.file("all.log")).size());
 }
 
+TEST(AuditManager, PublishesLeaseDeleteToSubscribedSink) {
+    TempDir dir;
+    auto manager = AuditManager::create(json(sinks({
+        fileSink(dir.file("deleted.log"), R"("events":["lease-delete"])") ,
+        fileSink(dir.file("all.log")),
+    })));
+
+    manager->publish(record("lease-delete"));
+    manager.reset();
+
+    EXPECT_EQ(1u, readLines(dir.file("deleted.log")).size());
+    EXPECT_EQ(1u, readLines(dir.file("all.log")).size());
+}
+
 TEST(AuditManager, OptionalRenewalChangeFilterIsPerSink) {
     TempDir dir;
     auto manager = AuditManager::create(json(sinks({
