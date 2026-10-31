@@ -13,6 +13,7 @@ add_executable(ip_audit_tests
     config_util_test.cc
     file_sink_test.cc
     formatter_test.cc
+    postgres_sink_test.cc
     record_queue_test.cc
     record_builder_test.cc
     zmq_sink_test.cc)

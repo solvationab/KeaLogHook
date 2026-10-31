@@ -8,7 +8,7 @@ dnf -y install dnf-plugins-core
 dnf config-manager --set-enabled crb
 dnf -y install epel-release
 dnf -y install cmake gcc-c++ make pkgconf-pkg-config boost-devel \
-    openssl-devel zlib-devel zeromq-devel kea kea-devel rpm-build
+    openssl-devel zlib-devel libpq-devel zeromq-devel kea kea-devel rpm-build
 
 build_dir="/tmp/kea-ip-audit-build"
 cmake -S /src -B "$build_dir" -DCMAKE_BUILD_TYPE=Release -DKEA_PREFIX=/usr \

@@ -65,7 +65,7 @@ These observations are removed when the hook unloads. They can be collected thro
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `type` | string | required | Sink implementation: `file` or `zeromq`. |
+| `type` | string | required | Sink implementation: `file`, `postgres` or `zeromq`. |
 | `name` | string | `<type>-<index>` | Name used in log messages. |
 | `events` | list of strings | all events | Events this sink receives. See [fields.md](fields.md#events). |
 | `format` | string or object | `json` | How a record is turned into text. See below. |
@@ -157,6 +157,40 @@ Publishes records on a ZeroMQ `PUB` socket.
 
 ZeroMQ subscription filters match on a prefix of the first frame, so subscribers can
 select events or any other topic structure you build with the `topic` template.
+
+## `postgres` sink
+
+Stores every audit record in `ip_audit_events` as JSONB. It also maintains lease intervals
+in `ip_audit_leases`, with an index on `(ip, start, end)` for point-in-time address lookups.
+Assignments open an interval through `lease-expires`; renewals by the same client extend it;
+an assignment to a different client closes the prior interval and opens another. Release,
+delete, decline and expiry events close a matching interval at the event timestamp. Event
+records are retained separately even when no lease interval can be matched.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `connection-string` | string | required | libpq connection string, for example `host=127.0.0.1 dbname=kea_audit user=kea_audit`. Use PostgreSQL's standard `PG*` environment variables or a protected service file for credentials. |
+
+`format` must be `json` (the default). Its optional `fields` list and `include-empty` setting
+control the JSONB `record` value; template format is not supported by this structured sink.
+
+The sink creates the two tables and the lease lookup index when it connects. The Kea database
+role therefore needs `CONNECT`, `CREATE` on the target schema, and normal table write privileges.
+The connection is made when Kea loads the hook, so an unavailable database prevents loading;
+after a later connection loss, the sink attempts to reconnect on the next record. Writes use
+parameterized SQL and one transaction per record. Keep a file sink alongside PostgreSQL when
+you need a local authoritative copy during database outages; sink failures do not block DHCP.
+
+Example point-in-time lookup:
+
+```sql
+SELECT record
+FROM ip_audit_leases
+WHERE ip = '192.0.2.15'::inet
+  AND start <= '2025-01-01T12:00:00Z'::timestamptz
+  AND "end" > '2025-01-01T12:00:00Z'::timestamptz
+ORDER BY start DESC;
+```
 
 ## Example
 

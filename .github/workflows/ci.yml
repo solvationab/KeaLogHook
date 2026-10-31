@@ -21,6 +21,18 @@ jobs:
       matrix:
         os: [ubuntu-24.04, ubuntu-26.04]
     runs-on: ${{ matrix.os }}
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -29,7 +41,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake pkg-config \
-            libssl-dev zlib1g-dev \
+            libssl-dev zlib1g-dev libpq-dev \
             kea-dev libzmq3-dev libboost-dev libgtest-dev \
             kea-dhcp4-server iproute2 python3
           # The package starts a Kea instance on its default configuration; the integration test runs its own.
@@ -56,6 +68,8 @@ jobs:
         run: cmake --build build --parallel
 
       - name: Unit tests
+        env:
+          IP_AUDIT_TEST_DATABASE: "host=127.0.0.1 port=5432 dbname=postgres user=postgres password=postgres"
         run: ctest --test-dir build --output-on-failure
 
       - name: Build DEB package

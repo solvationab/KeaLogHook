@@ -25,6 +25,7 @@ find_package(Boost REQUIRED)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 find_package(ZLIB REQUIRED)
 find_package(Threads REQUIRED)
+find_package(PostgreSQL REQUIRED)
 pkg_check_modules(ZMQ REQUIRED IMPORTED_TARGET libzmq)
 
 find_path(KEA_INCLUDE_DIR NAMES hooks/hooks.h HINTS ${KEA_PREFIX} PATH_SUFFIXES include/kea REQUIRED)
@@ -55,6 +56,7 @@ add_library(ip_audit_core STATIC
     src/file_sink.cc
     src/formatter.cc
     src/ip_audit_log.cc
+    src/postgres_sink.cc
     src/record_builder.cc
     src/record_queue.cc
     src/sink_factory.cc
@@ -66,7 +68,7 @@ target_include_directories(ip_audit_core PUBLIC
     ${GENERATED_DIR}
     ${KEA_INCLUDE_DIR}
     ${Boost_INCLUDE_DIRS})
-target_link_libraries(ip_audit_core PUBLIC ${KEA_LIBS} OpenSSL::Crypto ZLIB::ZLIB PkgConfig::ZMQ Threads::Threads)
+target_link_libraries(ip_audit_core PUBLIC ${KEA_LIBS} OpenSSL::Crypto ZLIB::ZLIB PkgConfig::ZMQ PostgreSQL::PostgreSQL Threads::Threads)
 target_compile_options(ip_audit_core PRIVATE -Wall -Wextra)
 
 add_library(dhcp_ip_audit MODULE src/callouts.cc)

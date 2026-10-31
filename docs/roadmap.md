@@ -81,8 +81,9 @@ the end.
 
 ## Additional sinks
 
-18. **Database sink.** A PostgreSQL sink with a lease table and an index on
-    `(ip, start, end)` answers "who had IP X at time T" directly.
+18. **Database sink.** [x] PostgreSQL event and lease-history tables with an index on
+    `(ip, start, end)` support direct "who had IP X at time T" lookups. See
+    [configuration.md](configuration.md#postgres-sink).
 19. **Syslog/journald, Kafka or HTTP sinks.** These suit central log platforms and fit the
     existing `Sink` interface (see [extending.md](extending.md)).
 
@@ -94,5 +95,5 @@ the end.
 
 ## Suggested order
 
-Continue with a database sink (18), extending downstream integration after the core
-operational controls and metrics are in place.
+The PostgreSQL sink (18) is implemented; the next suggested work is downstream integration
+after the core operational controls and metrics are in place.

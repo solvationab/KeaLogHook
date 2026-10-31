@@ -17,11 +17,12 @@ read from Kea's `user-context`. Every record includes the local server host name
 log correlation. DHCPv6 records include IA_NA, IA_TA and IA_PD details,
 DUID/IAID, delegated prefix length, and relay interface-id and remote-id data.
 
-Two sinks are included:
+Three sinks are included:
 
 | Sink type | Purpose |
 |-----------|---------|
 | `file`    | Appends records to a log file, with size-based rotation. |
+| `postgres` | Stores every event and maintains indexed lease-history intervals in PostgreSQL. |
 | `zeromq`  | Publishes records on a ZeroMQ PUB socket for real-time consumers. |
 
 The bounded queue keeps slow sinks off the DHCP processing path. Records are dropped if
@@ -44,17 +45,19 @@ flowchart LR
     C6 --> B
     B --> M[AuditManager]
     M -->|event and renewal policies| S1[file sink]
-    M -->|event and renewal policies| S2[zeromq sink]
+    M -->|event and renewal policies| S2[postgres sink]
+    M -->|event and renewal policies| S3[zeromq sink]
     S1 --> F[(log file)]
-    S2 --> Z[ZeroMQ subscribers]
+    S2 --> P[(PostgreSQL)]
+    S3 --> Z[ZeroMQ subscribers]
 ```
 
 ## Quick start
 
-1. Build and install (Linux, requires Kea development files, libzmq and Boost headers):
+1. Build and install (Linux, requires Kea development files, libzmq, libpq and Boost headers):
 
    ```sh
-   cmake -S . -B build -DKEA_PREFIX=/usr
+  cmake -S . -B build -DKEA_PREFIX=/usr
    cmake --build build
    sudo cmake --install build
    ```
@@ -84,7 +87,7 @@ flowchart LR
   {"timestamp":"2026-10-30T12:00:00.123Z","event":"lease-assign","schema-version":"1.0.0","server":"kea-dhcp4-01","ip-address":"192.0.2.10","hw-address":"aa:bb:cc:dd:ee:ff","subnet-id":1,"valid-lifetime":3600,"circuit-id":"0004000a0001","remote-id":"0a1b2c3d4e5f","giaddr":"192.0.2.1"}
    ```
 
-A complete example with both sinks is in [examples/kea-dhcp4.conf](examples/kea-dhcp4.conf).
+A complete example with file and ZeroMQ sinks is in [examples/kea-dhcp4.conf](examples/kea-dhcp4.conf).
 The DHCPv6 configuration example is [examples/kea-dhcp6.conf](examples/kea-dhcp6.conf).
 
 ## Documentation
@@ -99,7 +102,7 @@ The DHCPv6 configuration example is [examples/kea-dhcp6.conf](examples/kea-dhcp6
 ## Requirements
 
 - Kea DHCPv4 and/or DHCPv6 with hooks support (development headers and `kea-msg-compiler`)
-- libzmq
+- libzmq and libpq (PostgreSQL client library)
 - Boost (headers only)
 - A C++17 compiler and CMake 3.16+
 - Linux or another POSIX system (the file sink uses POSIX I/O)

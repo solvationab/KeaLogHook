@@ -4,7 +4,7 @@
 
 Requirements: Kea development headers and libraries (`kea-dhcpsrv`, `kea-dhcp++`,
 `kea-hooks`, `kea-log`, `kea-stats`, `kea-util`, `kea-cc`, `kea-exceptions`), `kea-msg-compiler`,
-libzmq (found through `pkg-config`), Boost headers, OpenSSL Crypto and zlib development files,
+libzmq (found through `pkg-config`), libpq, Boost headers, OpenSSL Crypto and zlib development files,
 a C++17 compiler, CMake 3.16+.
 
 ```sh
@@ -33,10 +33,13 @@ ctest --test-dir build --output-on-failure
 ```
 
 They cover config validation, the formatters and the `Template` engine, the record builder
-(including IPv4 client classes, option 82, subnet context and DHCPv6 IA/relay fields), the file and ZeroMQ sinks, and
+(including IPv4 client classes, option 82, subnet context and DHCPv6 IA/relay fields), the file,
+PostgreSQL and ZeroMQ sinks, and
 `AuditManager` (event filters including `lease-delete`, renewal filtering and rate limiting,
 queue overflow accounting, StatsMgr metrics, shutdown draining and sink failure isolation).
 The file sink failure test uses `/dev/full`.
+The PostgreSQL sink test uses the database named by `IP_AUDIT_TEST_DATABASE`; it is skipped
+when that variable is unset. CI supplies a PostgreSQL 16 service.
 
 The integration test starts a real `kea-dhcp4` with the installed hook and drives it with a
 simulated relay agent (`tests/integration/relay_client.py`) in a separate network namespace.
@@ -76,8 +79,8 @@ cpack -G RPM    # kea-ip-audit-hook-1.2.3-1.x86_64.rpm
 ```
 
 The package installs both libraries into Kea's hooks directory and the README, docs and
-example configurations under `<prefix>/share/doc`. Dependencies on the Kea and libzmq runtime
-libraries are detected automatically from the built binary (`dpkg-shlibdeps` is required for
+example configurations under `<prefix>/share/doc`. Dependencies on runtime libraries (Kea,
+libzmq and libpq) are detected automatically from the built binary (`dpkg-shlibdeps` is required for
 DEB; `rpmbuild` for RPM). The package does not modify Kea configuration; add the appropriate
 `hooks-libraries` entry to `Dhcp4` or `Dhcp6` yourself and restart Kea.
 

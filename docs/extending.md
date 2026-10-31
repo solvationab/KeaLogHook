@@ -1,7 +1,7 @@
 # Adding a new sink
 
 A sink is a destination for audit records. The hook logic does not know which sinks
-exist; it only talks to the `Sink` interface, so adding one (a database, syslog, Kafka,
+exist; it only talks to the `Sink` interface, so adding one (syslog, Kafka,
 an HTTP endpoint, ...) requires no changes to the callouts or the record builder.
 
 ## 1. Implement the interface
