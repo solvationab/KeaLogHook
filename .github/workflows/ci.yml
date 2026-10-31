@@ -28,6 +28,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake pkg-config \
+            libssl-dev zlib1g-dev \
             kea-dev libzmq3-dev libboost-dev libgtest-dev \
             kea-dhcp4-server iproute2 python3 rpm
           # The package starts a Kea instance on its default configuration; the integration test runs its own.
@@ -44,9 +45,11 @@ jobs:
 
       - name: Build DEB and RPM packages
         run: |
-          cpack --config build/CPackConfig.cma          cpack --config build/CPackConfig.cmake -G DEB -B build/packages
+          cpack --config build/CPackConfig.cmake -G DEB -B build/packages
           cpack --config build/CPackConfig.cmake -G RPM -B build/packages
-  with:
+
+      - uses: actions/upload-artifact@v4
+        with:
           name: packages-${{ matrix.os }}
           path: build/packages/*
           if-no-files-found: error

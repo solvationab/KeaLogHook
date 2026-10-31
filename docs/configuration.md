@@ -98,9 +98,14 @@ Appends one formatted record per line.
 | `max-size` | integer (bytes) | `0` | Rotate before the file would exceed this size. `0` disables rotation. |
 | `max-files` | integer | `5` | Number of rotated files to keep (`path.1` is the newest). `0` deletes the file on rotation. |
 | `fsync` | boolean | `false` | Call `fsync` after every record. Safer against power loss, slower. |
+| `rotation-interval` | `none`, `daily` or `hourly` | `none` | Also rotate when a write crosses a UTC day or hour boundary. Size-based rotation remains active when configured. |
+| `retention-days` | integer (0-36500) | `0` | Delete numbered rotations older than this many days during writes. `0` disables age-based deletion; `max-files` still applies. |
+| `compress-rotated` | boolean | `false` | Gzip numbered rotations as `.gz` files. Requires the zlib runtime, linked into the hook. |
 
 Records are written with unbuffered `write()` calls, so a record is never split across
 buffered flushes. If the file cannot be opened at load time, loading fails.
+Age-based pruning runs when records are written, and compressed rotations retain their
+numbered order (for example, `path.1.gz`).
 
 ## `zeromq` sink
 

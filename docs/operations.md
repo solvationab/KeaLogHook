@@ -4,7 +4,8 @@
 
 Requirements: Kea development headers and libraries (`kea-dhcpsrv`, `kea-dhcp++`,
 `kea-hooks`, `kea-log`, `kea-util`, `kea-cc`, `kea-exceptions`), `kea-msg-compiler`,
-libzmq (found through `pkg-config`), Boost headers, a C++17 compiler, CMake 3.16+.
+libzmq (found through `pkg-config`), Boost headers, OpenSSL Crypto and zlib development files,
+a C++17 compiler, CMake 3.16+.
 
 ```sh
 cmake -S . -B build -DKEA_PREFIX=/usr

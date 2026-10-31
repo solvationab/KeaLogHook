@@ -53,8 +53,10 @@ the end.
 
 ## Compliance and security
 
-10. **Retention.** Retention in days with automatic deletion, time-based rotation (daily or
-    hourly) in addition to size-based rotation, and compression of rotated files.
+10. **Retention.**
+    - [x] **10.1** Optional daily/hourly UTC rotation in addition to size-based rotation.
+    - [x] **10.2** Optional age-based deletion of numbered rotations.
+    - [x] **10.3** Optional gzip compression of numbered rotations.
 11. **Tamper evidence.** Hash chaining or signing of log lines. Document `chattr +a` and
     shipping to write-once storage.
 12. **Privacy controls.** Optional field-level pseudonymisation (for example a keyed hash of

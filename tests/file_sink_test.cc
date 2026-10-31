@@ -3,8 +3,13 @@
 #include "config_util.h"
 #include "test_util.h"
 
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <utime.h>
+#include <zlib.h>
 
+#include <ctime>
+#include <fstream>
 using namespace ip_audit;
 using ip_audit_test::json;
 using ip_audit_test::readLines;
@@ -33,6 +38,44 @@ mode_t modeOf(const std::string& path) {
     struct stat st;
     EXPECT_EQ(0, ::stat(path.c_str(), &st));
     return st.st_mode & 0777;
+}
+
+void writeFile(const std::string& path, const std::string& contents) {
+    std::ofstream out(path, std::ios::binary);
+    ASSERT_TRUE(out.good());
+    out << contents;
+}
+
+void setModifiedTime(const std::string& path, std::time_t value) {
+    struct utimbuf times;
+    times.actime = value;
+    times.modtime = value;
+    ASSERT_EQ(0, ::utime(path.c_str(), &times));
+}
+
+void writeGzipFile(const std::string& path, const std::string& contents) {
+    gzFile file = gzopen(path.c_str(), "wb");
+    ASSERT_NE(nullptr, file);
+    ASSERT_EQ(static_cast<int>(contents.size()),
+              gzwrite(file, contents.data(), static_cast<unsigned>(contents.size())));
+    ASSERT_EQ(Z_OK, gzclose(file));
+}
+
+std::string readGzipFile(const std::string& path) {
+    gzFile file = gzopen(path.c_str(), "rb");
+    EXPECT_NE(nullptr, file);
+    if (!file) {
+        return "";
+    }
+    std::string contents;
+    char buffer[256];
+    int count;
+    while ((count = gzread(file, buffer, sizeof(buffer))) > 0) {
+        contents.append(buffer, static_cast<size_t>(count));
+    }
+    EXPECT_EQ(0, count);
+    EXPECT_EQ(Z_OK, gzclose(file));
+    return contents;
 }
 
 }
@@ -85,6 +128,10 @@ TEST(FileSink, RejectsInvalidConfiguration) {
     EXPECT_THROW(createSink(fileCfg(dir, R"("max-size":-1)")), ConfigError);
     EXPECT_THROW(createSink(fileCfg(dir, R"("max-files":1001)")), ConfigError);
     EXPECT_THROW(createSink(fileCfg(dir, R"("fsync":"yes")")), ConfigError);
+    EXPECT_THROW(createSink(fileCfg(dir, R"("rotation-interval":"weekly")")), ConfigError);
+    EXPECT_THROW(createSink(fileCfg(dir, R"("retention-days":-1)")), ConfigError);
+    EXPECT_THROW(createSink(fileCfg(dir, R"("retention-days":36501)")), ConfigError);
+    EXPECT_THROW(createSink(fileCfg(dir, R"("compress-rotated":"yes")")), ConfigError);
     EXPECT_THROW(createSink(fileCfg(dir, R"("unknown":1)")), ConfigError);
 }
 
@@ -131,6 +178,62 @@ TEST(FileSink, NoRotationWhenMaxSizeIsZero) {
 
     EXPECT_EQ(20u, readLines(dir.file("a.log")).size());
     EXPECT_FALSE(std::filesystem::exists(dir.file("a.log.1")));
+}
+
+TEST(FileSink, RotatesAtDailyAndHourlyBoundaries) {
+    for (const auto& interval : {std::string("daily"), std::string("hourly")}) {
+        TempDir dir;
+        const std::string path = dir.file("a.log");
+        writeFile(path, "previous period\n");
+        const std::time_t age = interval == "daily" ? 2 * 86400 : 2 * 3600;
+        setModifiedTime(path, std::time(nullptr) - age);
+
+        const std::string extra = R"("rotation-interval":")" + interval +
+                                  R"(","max-files":2,)" + kLineFormat;
+        auto sink = createSink(fileCfg(dir, extra));
+        sink->write(record("192.0.2.1"));
+
+        EXPECT_EQ((std::vector<std::string>{"previous period"}), readLines(path + ".1"))
+            << interval;
+        EXPECT_EQ((std::vector<std::string>{"lease-assign 192.0.2.1"}), readLines(path))
+            << interval;
+    }
+}
+
+TEST(FileSink, PrunesExpiredPlainAndCompressedRotations) {
+    TempDir dir;
+    const std::string path = dir.file("a.log");
+    writeFile(path + ".1", "expired plain\n");
+    writeFile(path + ".2", "recent plain\n");
+    writeGzipFile(path + ".3.gz", "expired compressed\n");
+    const std::time_t now = std::time(nullptr);
+    setModifiedTime(path + ".1", now - 3 * 86400);
+    setModifiedTime(path + ".2", now - 3600);
+    setModifiedTime(path + ".3.gz", now - 3 * 86400);
+
+    auto sink = createSink(fileCfg(dir, R"("retention-days":1,"max-files":3)"));
+    sink->write(record("192.0.2.1"));
+
+    EXPECT_FALSE(std::filesystem::exists(path + ".1"));
+    EXPECT_TRUE(std::filesystem::exists(path + ".2"));
+    EXPECT_FALSE(std::filesystem::exists(path + ".3.gz"));
+}
+
+TEST(FileSink, CompressesRotationsAndPreservesNewestFirstOrder) {
+    TempDir dir;
+    const std::string path = dir.file("a.log");
+    auto sink = createSink(fileCfg(
+        dir, std::string(R"("max-size":1,"max-files":2,"compress-rotated":true,)") +
+                 kLineFormat));
+
+    sink->write(record("192.0.2.1"));
+    sink->write(record("192.0.2.2"));
+    sink->write(record("192.0.2.3"));
+
+    EXPECT_EQ("lease-assign 192.0.2.2\n", readGzipFile(path + ".1.gz"));
+    EXPECT_EQ("lease-assign 192.0.2.1\n", readGzipFile(path + ".2.gz"));
+    EXPECT_FALSE(std::filesystem::exists(path + ".1"));
+    EXPECT_FALSE(std::filesystem::exists(path + ".3.gz"));
 }
 
 TEST(SinkFactory, RejectsUnknownTypeAndListsAvailableOnes) {
