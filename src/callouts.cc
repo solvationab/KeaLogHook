@@ -1,5 +1,6 @@
 #include "audit_manager.h"
 #include "config_util.h"
+#include "control_commands.h"
 #include "ip_audit_log.h"
 #include "record_builder.h"
 
@@ -15,6 +16,14 @@ using namespace isc::hooks;
 namespace {
 
 std::unique_ptr<ip_audit::AuditManager> manager;
+
+int ipAuditReopen(CalloutHandle& handle) {
+    return ip_audit::handleReopenCommand(handle, manager.get());
+}
+
+int ipAuditStats(CalloutHandle& handle) {
+    return ip_audit::handleStatsCommand(handle, manager.get());
+}
 
 void publish(const char* event, const Pkt4Ptr& query, const Lease4Ptr& lease) {
     if (!manager || !lease) {
@@ -109,6 +118,8 @@ int load(LibraryHandle& handle) {
         handle.registerCallout("lease4_release", lease4_release);
         handle.registerCallout("lease4_decline", lease4_decline);
         handle.registerCallout("lease4_expire", lease4_expire);
+        handle.registerCommandCallout("ip-audit-reopen", ipAuditReopen);
+        handle.registerCommandCallout("ip-audit-stats", ipAuditStats);
     } catch (const std::exception& ex) {
         manager.reset();
         LOG_ERROR(ip_audit::ip_audit_logger, ip_audit::IP_AUDIT_LOAD_FAILED).arg(ex.what());

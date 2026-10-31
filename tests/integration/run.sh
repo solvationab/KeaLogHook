@@ -55,6 +55,7 @@ cat > "$WORK/kea-dhcp4.conf" <<EOF
 {
   "Dhcp4": {
     "interfaces-config": { "interfaces": ["$SERVER_IF"], "dhcp-socket-type": "udp" },
+    "control-socket": { "socket-type": "unix", "socket-name": "$WORK/kea-ctrl.sock" },
     "lease-database": { "type": "memfile", "persist": false },
     "valid-lifetime": 600,
     "subnet4": [
@@ -113,5 +114,7 @@ python3 "$HERE/check_audit_log.py" "$AUDIT_LOG" \
     --ip "$IP" --mac "$MAC" --giaddr "$RELAY_IP" \
   --circuit-id 706f72742d37 --remote-id 0a1b2c3d4e5f \
   --pop test-pop --site test-site
+
+python3 "$HERE/control_client.py" "$WORK/kea-ctrl.sock" "$AUDIT_LOG"
 
 echo "Integration test passed"

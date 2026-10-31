@@ -68,9 +68,9 @@ the end.
 
 ## Operations
 
-14. **Reopen and control commands.** Register Kea control-channel commands such as
-    `ip-audit-reopen` (for logrotate) and `ip-audit-stats`. This removes the current
-    limitation that the file sink does not follow external rotation.
+14. **Reopen and control commands.**
+    - [x] **14.1** Register `ip-audit-reopen` to reopen file sinks after external rotation.
+    - [x] **14.2** Register `ip-audit-stats` for queue and sink write counters.
 15. **Metrics.** Expose counters (records written, failed, dropped, queue depth) through
     Kea's statistics manager so they can be scraped, for example with a Kea Prometheus
     exporter.
@@ -94,5 +94,5 @@ the end.
 
 ## Suggested order
 
-Continue with item 14 (item 1 is largely done). It hardens the core without changing its design.
-Then add retention (10), HA identity (8), metrics (15) and a database sink (18).
+Continue with metrics (15) and a database sink (18), extending visibility and downstream
+integration after the core operational controls are in place.

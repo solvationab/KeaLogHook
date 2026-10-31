@@ -100,6 +100,21 @@ TEST(FileSink, AppendsToExistingFile) {
               readLines(dir.file("a.log")));
 }
 
+TEST(FileSink, ReopensAfterExternalRotation) {
+    TempDir dir;
+    const std::string path = dir.file("a.log");
+    auto sink = createSink(fileCfg(dir, kLineFormat));
+    sink->write(record("192.0.2.1"));
+    std::filesystem::rename(path, path + ".external");
+
+    EXPECT_TRUE(sink->reopen());
+    sink->write(record("192.0.2.2"));
+
+    EXPECT_EQ((std::vector<std::string>{"lease-assign 192.0.2.1"}),
+              readLines(path + ".external"));
+    EXPECT_EQ((std::vector<std::string>{"lease-assign 192.0.2.2"}), readLines(path));
+}
+
 TEST(FileSink, DefaultFileModeIsAtMost0640) {
     TempDir dir;
     auto sink = createSink(fileCfg(dir));

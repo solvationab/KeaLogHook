@@ -70,6 +70,13 @@ public:
         }
     }
 
+    bool reopen() override {
+        std::lock_guard<std::mutex> lock(mutex_);
+        close();
+        open();
+        return true;
+    }
+
 private:
     void open() {
         fd_ = ::open(path_.c_str(), O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, mode_);

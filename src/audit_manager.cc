@@ -54,6 +54,37 @@ AuditManager::~AuditManager() {
     }
 }
 
+AuditManager::Statistics AuditManager::statistics() const {
+    Statistics stats;
+    stats.queueDepth = queue_.size();
+    stats.queueCapacity = queue_.capacity();
+    stats.sinkCount = sinks_.size();
+    stats.droppedRecords = droppedRecords();
+    stats.sinkWrites = sinkWrites_.load();
+    stats.sinkWriteFailures = sinkWriteFailures_.load();
+    return stats;
+}
+
+AuditManager::ReopenResult AuditManager::reopenSinks() {
+    ReopenResult result;
+    for (auto& entry : sinks_) {
+        try {
+            if (entry.sink->reopen()) {
+                ++result.reopened;
+            } else {
+                ++result.unsupported;
+            }
+        } catch (const std::exception& ex) {
+            ++result.failed;
+            result.errors.push_back(entry.name + ": " + ex.what());
+        } catch (...) {
+            ++result.failed;
+            result.errors.push_back(entry.name + ": unknown error");
+        }
+    }
+    return result;
+}
+
 std::unique_ptr<AuditManager> AuditManager::create(const ConstElementPtr& sinks,
                                                   size_t queueCapacity) {
     if (!sinks || sinks->getType() != Element::list || sinks->listValue().empty()) {
@@ -134,10 +165,13 @@ void AuditManager::deliver(const AuditRecord& record) noexcept {
                 continue;
             }
             entry.sink->write(record);
+            sinkWrites_.fetch_add(1);
             rememberDelivery(entry, record);
         } catch (const std::exception& ex) {
+            sinkWriteFailures_.fetch_add(1);
             LOG_ERROR(ip_audit_logger, IP_AUDIT_SINK_WRITE_FAILED).arg(entry.name).arg(ex.what());
         } catch (...) {
+            sinkWriteFailures_.fetch_add(1);
             LOG_ERROR(ip_audit_logger, IP_AUDIT_SINK_WRITE_FAILED).arg(entry.name).arg("unknown error");
         }
     }

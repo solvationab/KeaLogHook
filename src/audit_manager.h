@@ -23,6 +23,22 @@ class AuditManager {
 public:
     static constexpr size_t kDefaultQueueCapacity = 10000;
 
+    struct Statistics {
+        size_t queueDepth = 0;
+        size_t queueCapacity = 0;
+        size_t sinkCount = 0;
+        uint64_t droppedRecords = 0;
+        uint64_t sinkWrites = 0;
+        uint64_t sinkWriteFailures = 0;
+    };
+
+    struct ReopenResult {
+        size_t reopened = 0;
+        size_t unsupported = 0;
+        size_t failed = 0;
+        std::vector<std::string> errors;
+    };
+
     // sinks is the hook's "sinks" parameter: a non-empty list of sink objects.
     static std::unique_ptr<AuditManager> create(
         const isc::data::ConstElementPtr& sinks,
@@ -35,6 +51,8 @@ public:
 
     size_t sinkCount() const { return sinks_.size(); }
     uint64_t droppedRecords() const { return queue_.droppedCount() + enqueueErrors_.load(); }
+    Statistics statistics() const;
+    ReopenResult reopenSinks();
 
     // Queues the record for asynchronous delivery. Never throws.
     void publish(AuditRecord record) noexcept;
@@ -58,6 +76,8 @@ private:
     RecordQueue queue_;
     std::thread worker_;
     std::atomic<uint64_t> enqueueErrors_{0};
+    std::atomic<uint64_t> sinkWrites_{0};
+    std::atomic<uint64_t> sinkWriteFailures_{0};
     std::vector<Entry> sinks_;
 
     bool shouldDeliver(Entry& entry, const AuditRecord& record);

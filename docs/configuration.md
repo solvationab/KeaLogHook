@@ -27,6 +27,22 @@ the hook unloads. A slow sink can fill the queue; records beyond its configured 
 are dropped rather than delaying DHCP processing. Sink failures are logged and do not
 prevent delivery to other sinks.
 
+## Control-channel commands
+
+The DHCPv4 and DHCPv6 libraries register `ip-audit-reopen` and `ip-audit-stats`. Enable a
+Kea control socket to invoke them.
+
+- `ip-audit-reopen` reopens file sinks under their write lock. Its `arguments` response
+  reports `reopened`, `unsupported` (for example, ZeroMQ sinks), `failed`, and per-sink
+  `errors`.
+- `ip-audit-stats` reports `queue-depth`, `queue-capacity`, `sink-count`, `sink-writes`,
+  `sink-write-failures`, and `dropped-records`. `sink-writes` counts successful writes to
+  sinks, so one record written to two sinks counts twice.
+
+Example command payloads are `{"command":"ip-audit-reopen"}` and
+`{"command":"ip-audit-stats"}`. Responses use Kea's standard `result`, `text`, and
+`arguments` fields.
+
 ## Parameters common to all sinks
 
 | Parameter | Type | Default | Description |

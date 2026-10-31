@@ -117,10 +117,11 @@ while True:
 
 ## Log file rotation
 
-Use the built-in rotation (`max-size`, `max-files`). The file sink keeps its file open and
-does not reopen it on a signal, so rotating it externally by renaming the file leaves the
-hook writing to the renamed file. If you must use an external tool, use a
-copy-and-truncate strategy (for example logrotate `copytruncate`).
+Use the built-in rotation (`max-size`, `max-files`, `rotation-interval`) where possible. If
+an external tool renames the active file, send the Kea control command `ip-audit-reopen` so
+the file sink opens the new path. This command requires Kea's control socket; see
+[configuration.md](configuration.md#control-channel-commands). `ip-audit-stats` reports queue
+depth, dropped records, sink write successes and failures.
 
 ## Privacy and security
 

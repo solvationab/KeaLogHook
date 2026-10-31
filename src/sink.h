@@ -10,6 +10,9 @@ class Sink {
 public:
     virtual ~Sink() = default;
     virtual void write(const AuditRecord& record) = 0;
+
+    // Returns true if this sink supports reopening an external resource.
+    virtual bool reopen() { return false; }
 };
 
 }

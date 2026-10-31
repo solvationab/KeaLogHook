@@ -17,6 +17,7 @@ public:
     bool tryPush(AuditRecord record);
     bool waitPop(AuditRecord& record);
     void close();
+    size_t capacity() const { return capacity_; }
     size_t size() const;
     uint64_t droppedCount() const;
 

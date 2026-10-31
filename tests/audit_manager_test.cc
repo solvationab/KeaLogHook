@@ -5,7 +5,9 @@
 
 #include <sys/stat.h>
 
+#include <chrono>
 #include <filesystem>
+#include <thread>
 
 using namespace ip_audit;
 using ip_audit_test::json;
@@ -54,6 +56,15 @@ std::string errorOf(const std::string& sinksJson) {
     return "";
 }
 
+template <typename Predicate>
+bool waitFor(Predicate predicate) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+    while (!predicate() && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::yield();
+    }
+    return predicate();
+}
+
 }
 
 TEST(AuditManager, RejectsInvalidSinksParameter) {
@@ -94,6 +105,49 @@ TEST(AuditManager, CountsSinks) {
     auto manager = AuditManager::create(
         json(sinks({fileSink(dir.file("a.log")), fileSink(dir.file("b.log"))})));
     EXPECT_EQ(2u, manager->sinkCount());
+}
+
+TEST(AuditManager, ReportsRuntimeStatistics) {
+    TempDir dir;
+    auto manager = AuditManager::create(json(sinks({fileSink(dir.file("a.log"))})), 17);
+    auto stats = manager->statistics();
+
+    EXPECT_EQ(0u, stats.queueDepth);
+    EXPECT_EQ(17u, stats.queueCapacity);
+    EXPECT_EQ(1u, stats.sinkCount);
+    EXPECT_EQ(0u, stats.droppedRecords);
+    EXPECT_EQ(0u, stats.sinkWrites);
+    EXPECT_EQ(0u, stats.sinkWriteFailures);
+
+    manager->publish(record("lease-assign"));
+    ASSERT_TRUE(waitFor([&] { return manager->statistics().sinkWrites == 1; }));
+    stats = manager->statistics();
+    EXPECT_EQ(1u, stats.sinkWrites);
+    EXPECT_EQ(0u, stats.sinkWriteFailures);
+    EXPECT_EQ(1u, readLines(dir.file("a.log")).size());
+}
+
+TEST(AuditManager, ReopensFileSinksAfterExternalRotation) {
+    TempDir dir;
+    const std::string path = dir.file("a.log");
+    auto manager = AuditManager::create(json(sinks({fileSink(
+        path, R"("format":{"type":"template","template":"%{event} %{ip-address}"})")})));
+    manager->publish(record("lease-assign", "192.0.2.1"));
+    ASSERT_TRUE(waitFor([&] { return manager->statistics().sinkWrites == 1; }));
+    std::filesystem::rename(path, path + ".external");
+
+    const auto result = manager->reopenSinks();
+    EXPECT_EQ(1u, result.reopened);
+    EXPECT_EQ(0u, result.unsupported);
+    EXPECT_EQ(0u, result.failed);
+
+    manager->publish(record("lease-assign", "192.0.2.2"));
+    ASSERT_TRUE(waitFor([&] { return manager->statistics().sinkWrites == 2; }));
+    manager.reset();
+
+    EXPECT_EQ((std::vector<std::string>{"lease-assign 192.0.2.1"}),
+              readLines(path + ".external"));
+    EXPECT_EQ((std::vector<std::string>{"lease-assign 192.0.2.2"}), readLines(path));
 }
 
 TEST(AuditManager, PublishesToEverySinkWhenNoEventFilter) {
@@ -241,6 +295,13 @@ TEST(AuditManager, FailingSinkDoesNotAffectOtherSinks) {
 
     EXPECT_NO_THROW(manager->publish(record("lease-assign")));
     EXPECT_NO_THROW(manager->publish(record("lease-renew")));
+    ASSERT_TRUE(waitFor([&] {
+        const auto stats = manager->statistics();
+        return stats.sinkWrites == 2 && stats.sinkWriteFailures == 2;
+    }));
+    const auto stats = manager->statistics();
+    EXPECT_EQ(2u, stats.sinkWrites);
+    EXPECT_EQ(2u, stats.sinkWriteFailures);
     manager.reset();
 
     EXPECT_EQ(2u, readLines(dir.file("ok.log")).size());
