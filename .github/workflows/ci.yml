@@ -72,6 +72,9 @@ jobs:
           IP_AUDIT_TEST_DATABASE: "host=127.0.0.1 port=5432 dbname=postgres user=postgres password=postgres"
         run: ctest --test-dir build --output-on-failure
 
+      - name: Lookup CLI tests
+        run: python3 tests/test_lookup.py
+
       - name: Build DEB package
         run: |
           cpack --config build/CPackConfig.cmake -G DEB -B build/packages

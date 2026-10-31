@@ -90,6 +90,18 @@ flowchart LR
 A complete example with file and ZeroMQ sinks is in [examples/kea-dhcp4.conf](examples/kea-dhcp4.conf).
 The DHCPv6 configuration example is [examples/kea-dhcp6.conf](examples/kea-dhcp6.conf).
 
+## Looking Up Lease History
+
+`ip-audit-lookup` reconstructs the lease timeline for an address at a timestamp from a base
+log and its numbered or compressed rotations:
+
+```sh
+ip-audit-lookup 192.0.2.10 2026-10-31T12:00:00Z /var/log/kea/ip-audit.log
+```
+
+See [docs/operations.md](docs/operations.md#looking-up-lease-history) for event handling and
+exit codes.
+
 ## Documentation
 
 - [docs/architecture.md](docs/architecture.md) - how the hook works internally
@@ -103,6 +115,7 @@ The DHCPv6 configuration example is [examples/kea-dhcp6.conf](examples/kea-dhcp6
 
 - Kea DHCPv4 and/or DHCPv6 with hooks support (development headers and `kea-msg-compiler`)
 - libzmq and libpq (PostgreSQL client library)
+- Python 3 to run the lookup CLI and integration tests
 - Boost (headers only)
 - A C++17 compiler and CMake 3.16+
 - Linux or another POSIX system (the file sink uses POSIX I/O)

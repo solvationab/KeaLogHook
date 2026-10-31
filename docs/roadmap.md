@@ -89,11 +89,11 @@ the end.
 
 ## Query tooling
 
-20. **Lookup CLI.** A tool such as `ip-audit-lookup <ip> <timestamp>` that reads the log
-    files and reconstructs the lease timeline, including rotated and compressed files, for
-    abuse and legal teams.
+20. **Lookup CLI.** [x] `ip-audit-lookup <ip> <timestamp> <log>` reconstructs lease intervals
+    from JSON logs and numbered/compressed rotations. See
+    [operations.md](operations.md#looking-up-lease-history).
 
 ## Suggested order
 
-The PostgreSQL sink (18) is implemented; the next suggested work is downstream integration
-after the core operational controls and metrics are in place.
+The PostgreSQL sink (18) and lookup CLI (20) are implemented; the next suggested work is
+downstream integration after the core operational controls and metrics are in place.

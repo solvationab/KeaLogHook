@@ -40,6 +40,8 @@ queue overflow accounting, StatsMgr metrics, shutdown draining and sink failure 
 The file sink failure test uses `/dev/full`.
 The PostgreSQL sink test uses the database named by `IP_AUDIT_TEST_DATABASE`; it is skipped
 when that variable is unset. CI supplies a PostgreSQL 16 service.
+The lookup CLI tests use only the Python standard library and run with
+`python3 tests/test_lookup.py`. Python 3 is also required to run the installed `ip-audit-lookup`.
 
 The integration test starts a real `kea-dhcp4` with the installed hook and drives it with a
 simulated relay agent (`tests/integration/relay_client.py`) in a separate network namespace.
@@ -163,6 +165,30 @@ an external tool renames the active file, send the Kea control command `ip-audit
 the file sink opens the new path. This command requires Kea's control socket; see
 [configuration.md](configuration.md#control-channel-commands). `ip-audit-stats` reports queue
 depth, dropped records, sink write successes and failures.
+
+## Looking up lease history
+
+The installed `ip-audit-lookup` command reads JSON audit records and reconstructs lease
+intervals from assignment, renewal and lease-ending events. Pass a base log path to include
+that file plus sibling rotations (for example `ip-audit.log.1` and `ip-audit.log.1.gz`), or
+pass explicit files or a quoted glob pattern. Gzip rotations are read directly.
+
+```sh
+ip-audit-lookup 192.0.2.10 2026-10-31T12:00:00Z /var/log/kea/ip-audit.log
+```
+
+The timestamp must include a timezone. Assignments open an interval through `lease-expires`;
+renewals by the same client extend it. A different client closes the prior interval and opens
+a new one. Release, delete, decline and expiry events close a matching client interval, so a
+stale ending event for a previous client does not close a reassignment. Delegated IPv6
+prefixes match addresses within the prefix. Intervals use a start-inclusive, end-exclusive
+range. The tool prints matching intervals and source-file locations for relevant events.
+
+Exit status is `0` when a lease matches the query time, `1` when no lease matches, and `2`
+for invalid input or unreadable/malformed logs. Custom JSON field selections must retain the
+fields needed for reconstruction (`timestamp`, `event`, `ip-address`, and ideally
+`lease-expires` plus client identity fields); missing expiry or identity fields limit the
+timeline's precision.
 
 ## Privacy and security
 

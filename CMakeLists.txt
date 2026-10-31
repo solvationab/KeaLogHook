@@ -86,6 +86,7 @@ if(IP_AUDIT_BUILD_TESTS)
 endif()
 
 install(TARGETS dhcp_ip_audit dhcp6_ip_audit LIBRARY DESTINATION ${KEA_HOOKS_DIR})
+install(PROGRAMS scripts/ip_audit_lookup.py DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME ip-audit-lookup)
 install(FILES examples/kea-dhcp4.conf examples/kea-dhcp6.conf DESTINATION ${CMAKE_INSTALL_DOCDIR}/examples)
 install(FILES README.md DESTINATION ${CMAKE_INSTALL_DOCDIR})
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DOCDIR}/docs)
