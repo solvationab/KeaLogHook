@@ -1,3 +1,7 @@
+#if __has_include(<config.h>)
+#include <config.h>
+#endif
+
 #include "record_builder.h"
 
 #include <dhcp/dhcp4.h>
