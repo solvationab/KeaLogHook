@@ -30,6 +30,7 @@ MAC=aa:bb:cc:00:00:01
 WORK="$(mktemp -d)"
 AUDIT_LOG="$WORK/ip-audit.log"
 KEA_LOG="$WORK/kea.log"
+KEA_SOCKET="/run/kea/kea-log-hook-${WORK##*/}.sock"
 KEA_PID=""
 
 cleanup() {
@@ -41,12 +42,15 @@ cleanup() {
         echo "--- kea log ---"; cat "$KEA_LOG" 2>/dev/null || true
         echo "--- audit log ---"; cat "$AUDIT_LOG" 2>/dev/null || true
     fi
+    rm -f "$KEA_SOCKET"
     rm -rf "$WORK"
     exit "$status"
 }
 trap cleanup EXIT
 
 if [ "$(id -u)" -ne 0 ]; then echo "must run as root" >&2; exit 2; fi
+
+mkdir -p /run/kea
 
 # A copy of the binary runs outside the AppArmor profile shipped with the distribution package.
 cp "$KEA_DHCP4" "$WORK/kea-dhcp4"
@@ -55,7 +59,7 @@ cat > "$WORK/kea-dhcp4.conf" <<EOF
 {
   "Dhcp4": {
     "interfaces-config": { "interfaces": ["$SERVER_IF"], "dhcp-socket-type": "udp" },
-    "control-socket": { "socket-type": "unix", "socket-name": "$WORK/kea-ctrl.sock" },
+    "control-socket": { "socket-type": "unix", "socket-name": "$KEA_SOCKET" },
     "lease-database": { "type": "memfile", "persist": false },
     "valid-lifetime": 600,
     "subnet4": [
@@ -115,6 +119,6 @@ python3 "$HERE/check_audit_log.py" "$AUDIT_LOG" \
   --circuit-id 706f72742d37 --remote-id 0a1b2c3d4e5f \
   --pop test-pop --site test-site
 
-python3 "$HERE/control_client.py" "$WORK/kea-ctrl.sock" "$AUDIT_LOG"
+python3 "$HERE/control_client.py" "$KEA_SOCKET" "$AUDIT_LOG"
 
 echo "Integration test passed"
