@@ -3,12 +3,16 @@
 #include <dhcp/dhcp4.h>
 #include <dhcp/dhcp6.h>
 #include <dhcp/option.h>
+#include <dhcpsrv/cfgmgr.h>
+#include <dhcpsrv/cfg_subnets4.h>
+#include <dhcpsrv/cfg_subnets6.h>
 
 #include <chrono>
 #include <cstdio>
 #include <ctime>
 
 using namespace isc::dhcp;
+using isc::data::ConstElementPtr;
 
 namespace ip_audit {
 
@@ -19,6 +23,8 @@ constexpr uint16_t kCircuitId = 1;
 constexpr uint16_t kRemoteId = 2;
 constexpr uint16_t kLinkSelection = 5;
 constexpr uint16_t kSubscriberId = 6;
+constexpr uint16_t kVendorSpecific = RAI_OPTION_VSI;
+constexpr uint16_t kRelayFlags = RAI_OPTION_RELAY_FLAGS;
 
 std::string toHex(const std::vector<uint8_t>& data) {
     static const char digits[] = "0123456789abcdef";
@@ -52,6 +58,43 @@ std::string printableOrEmpty(const std::vector<uint8_t>& data) {
     return std::string(data.begin(), data.end());
 }
 
+ConstElementPtr subnetContext4(SubnetID subnetId) {
+    const auto config = CfgMgr::instance().getCurrentCfg();
+    if (!config) {
+        return ConstElementPtr();
+    }
+    const auto subnets = config->getCfgSubnets4();
+    if (!subnets) {
+        return ConstElementPtr();
+    }
+    const auto subnet = subnets->getBySubnetId(subnetId);
+    return subnet ? subnet->getContext() : ConstElementPtr();
+}
+
+ConstElementPtr subnetContext6(SubnetID subnetId) {
+    const auto config = CfgMgr::instance().getCurrentCfg();
+    if (!config) {
+        return ConstElementPtr();
+    }
+    const auto subnets = config->getCfgSubnets6();
+    if (!subnets) {
+        return ConstElementPtr();
+    }
+    const auto subnet = subnets->getBySubnetId(subnetId);
+    return subnet ? subnet->getContext() : ConstElementPtr();
+}
+
+std::string userContextString(const ConstElementPtr& context, const std::string& name) {
+    if (!context || context->getType() != isc::data::Element::map) {
+        return "";
+    }
+    const auto value = context->get(name);
+    if (!value || value->getType() != isc::data::Element::string) {
+        return "";
+    }
+    return sanitize(value->stringValue());
+}
+
 std::string isoTime(std::time_t secs, int millis = -1) {
     std::tm tm;
     gmtime_r(&secs, &tm);
@@ -82,7 +125,26 @@ AuditRecord buildRecord(const std::string& event, const Pkt4Ptr& query, const Le
     r.set("hw-address", lease->hwaddr_ ? lease->hwaddr_->toText(false) : "");
     r.set("client-id", lease->client_id_ ? lease->client_id_->toText() : "");
     r.set("hostname", sanitize(lease->hostname_));
+    std::string vendorClass, vendorClassText, userClass;
+    if (query) {
+        OptionPtr vendorClassOption = query->getOption(DHO_VENDOR_CLASS_IDENTIFIER);
+        OptionPtr userClassOption = query->getOption(DHO_USER_CLASS);
+        if (vendorClassOption) {
+            const auto data = vendorClassOption->toBinary();
+            vendorClass = toHex(data);
+            vendorClassText = printableOrEmpty(data);
+        }
+        if (userClassOption) {
+            userClass = toHex(userClassOption->toBinary());
+        }
+    }
+    r.set("vendor-class", vendorClass);
+    r.set("vendor-class-text", vendorClassText);
+    r.set("user-class", userClass);
     r.setNumber("subnet-id", lease->subnet_id_);
+    const auto context = subnetContext4(lease->subnet_id_);
+    r.set("pop", userContextString(context, "pop"));
+    r.set("site", userContextString(context, "site"));
     r.setNumber("valid-lifetime", lease->valid_lft_);
     r.set("lease-expires",
           isoTime(static_cast<std::time_t>(lease->cltt_) + static_cast<std::time_t>(lease->valid_lft_)));
@@ -106,6 +168,8 @@ AuditRecord buildRecord(const std::string& event, const Pkt4Ptr& query, const Le
     auto remote = sub(kRemoteId);
     auto subscriber = sub(kSubscriberId);
     auto link = sub(kLinkSelection);
+    auto relayFlags = sub(kRelayFlags);
+    auto vendorSpecific = sub(kVendorSpecific);
 
     if (rai) {
         for (const auto& kv : rai->getOptions()) {
@@ -133,6 +197,8 @@ AuditRecord buildRecord(const std::string& event, const Pkt4Ptr& query, const Le
     r.set("subscriber-id-text", printableOrEmpty(subscriber));
     r.set("link-selection", linkSelection);
     r.set("relay-suboptions", suboptions);
+    r.set("relay-flags", toHex(relayFlags));
+    r.set("relay-vendor-specific", toHex(vendorSpecific));
     r.set("address-family", "IPv4");
     r.set("lease-type", "");
     r.setEmptyNumber("iaid");
@@ -152,7 +218,13 @@ AuditRecord buildRecord(const std::string& event, const Pkt6Ptr& query, const Le
     r.set("hw-address", lease->hwaddr_ ? lease->hwaddr_->toText(false) : "");
     r.set("client-id", "");
     r.set("hostname", sanitize(lease->hostname_));
+    r.set("vendor-class", "");
+    r.set("vendor-class-text", "");
+    r.set("user-class", "");
     r.setNumber("subnet-id", lease->subnet_id_);
+    const auto context = subnetContext6(lease->subnet_id_);
+    r.set("pop", userContextString(context, "pop"));
+    r.set("site", userContextString(context, "site"));
     r.setNumber("valid-lifetime", lease->valid_lft_);
     r.set("lease-expires",
           isoTime(static_cast<std::time_t>(lease->cltt_) + static_cast<std::time_t>(lease->valid_lft_)));
@@ -237,6 +309,8 @@ AuditRecord buildRecord(const std::string& event, const Pkt6Ptr& query, const Le
     r.set("subscriber-id-text", subscriberIdText);
     r.set("link-selection", "");
     r.set("relay-suboptions", relaySuboptions);
+    r.set("relay-flags", "");
+    r.set("relay-vendor-specific", "");
     r.set("address-family", "IPv6");
     r.set("lease-type", leaseType);
     r.setNumber("iaid", lease->iaid_);

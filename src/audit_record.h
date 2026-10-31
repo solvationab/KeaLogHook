@@ -11,13 +11,15 @@ namespace ip_audit {
 inline const std::vector<std::string>& knownFieldNames() {
     static const std::vector<std::string> names = {
         "timestamp",     "event",           "ip-address",     "hw-address",
-        "client-id",     "hostname",        "subnet-id",      "valid-lifetime",
-        "lease-expires", "message-type",    "transaction-id", "interface",
-        "giaddr",        "relay-address",   "circuit-id",     "circuit-id-text",
-        "remote-id",     "remote-id-text",  "subscriber-id",  "subscriber-id-text",
-        "link-selection", "relay-suboptions", "address-family", "lease-type",
-        "iaid", "duid", "prefix-length", "relay-interface-id",
-        "relay-interface-id-text", "relay-link-address"};
+        "client-id",     "hostname",        "vendor-class",   "vendor-class-text",
+        "user-class",    "subnet-id",       "pop",            "site",
+        "valid-lifetime", "lease-expires",   "message-type",   "transaction-id",
+        "interface",     "giaddr",          "relay-address",  "circuit-id",
+        "circuit-id-text", "remote-id",      "remote-id-text", "subscriber-id",
+        "subscriber-id-text", "link-selection", "relay-suboptions", "relay-flags",
+        "relay-vendor-specific", "address-family", "lease-type", "iaid", "duid",
+        "prefix-length", "relay-interface-id", "relay-interface-id-text",
+        "relay-link-address"};
     return names;
 }
 

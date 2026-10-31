@@ -26,7 +26,12 @@ is omitted from JSON output unless `include-empty` is set.
 | `hw-address` | string | Client MAC address, lowercase hex with colons. |
 | `client-id` | string | DHCPv4 client identifier (option 61) as hex with colons. |
 | `hostname` | string | Hostname stored with the lease. Non-printable characters are replaced by `?`. |
+| `vendor-class` | string | DHCPv4 option 60 payload as lowercase hex. |
+| `vendor-class-text` | string | Printable-ASCII form of option 60, or empty if any byte is not printable. |
+| `user-class` | string | DHCPv4 option 77 payload, including its length-prefixed class data, as lowercase hex. |
 | `subnet-id` | number | Kea subnet id of the lease. |
+| `pop` | string | Sanitized string value of the subnet's `user-context.pop`; absent or non-string values are empty. |
+| `site` | string | Sanitized string value of the subnet's `user-context.site`; absent or non-string values are empty. |
 | `valid-lifetime` | number | Lease lifetime in seconds. |
 | `lease-expires` | string | Lease expiry time, UTC, ISO 8601. |
 | `message-type` | string | DHCP message that triggered the event, e.g. `DHCPREQUEST`. |
@@ -42,6 +47,8 @@ is omitted from JSON output unless `include-empty` is set.
 | `subscriber-id-text` | string | Printable-ASCII form of `subscriber-id`, or empty. |
 | `link-selection` | string | Option 82 sub-option 5 as a dotted IPv4 address. |
 | `relay-suboptions` | string | DHCPv4 option 82 sub-options as `code=hex` pairs; DHCPv6 relay options as `depth:code=hex` pairs. DHCPv6 depth 0 is the outermost relay. |
+| `relay-flags` | string | Option 82 sub-option 10 (Relay Agent Flags) as lowercase hex. |
+| `relay-vendor-specific` | string | Option 82 sub-option 9 (Vendor-Specific Information) as lowercase hex. |
 | `address-family` | string | `IPv4` or `IPv6`. |
 | `lease-type` | string | DHCPv6 IA type: `IA_NA`, `IA_TA` or `IA_PD`; empty for DHCPv4. |
 | `iaid` | number | DHCPv6 Identity Association Identifier; empty for DHCPv4. |

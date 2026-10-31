@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Minimal DHCPv4 relay agent simulator.
 
-Runs a full DORA exchange followed by a renewal and a release, all relayed with
-giaddr and relay agent information (option 82). Prints the assigned lease as JSON.
+Runs a full DORA exchange followed by a renewal and a release, sending vendor/user class
+options and relay agent information (option 82). Prints the assigned lease as JSON.
 """
 
 import argparse
@@ -62,11 +62,24 @@ class Relay:
         self.sock.bind((relay_ip, 67))
         self.sock.settimeout(5)
         self.xid = int.from_bytes(os.urandom(4), "big")
-        self.agent_info = option(82, option(1, b"port-7") + option(2, bytes.fromhex("0a1b2c3d4e5f")))
+        self.agent_info = option(
+            82,
+            option(1, b"port-7")
+            + option(2, bytes.fromhex("0a1b2c3d4e5f"))
+            + option(9, bytes.fromhex("00000123aabb"))
+            + option(10, b"\x01"),
+        )
 
     def send(self, msg_type, ciaddr="0.0.0.0", options=()):
-        packet = build_packet(msg_type, self.xid, self.mac, self.relay_ip, ciaddr,
-                              list(options) + [self.agent_info])
+        packet = build_packet(
+            msg_type,
+            self.xid,
+            self.mac,
+            self.relay_ip,
+            ciaddr,
+            list(options)
+            + [option(60, b"test-vendor"), option(77, b"\x05class"), self.agent_info],
+        )
         self.sock.sendto(packet, self.server)
 
     def expect(self, wanted):

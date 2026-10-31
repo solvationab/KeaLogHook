@@ -61,6 +61,7 @@ cat > "$WORK/kea-dhcp4.conf" <<EOF
       {
         "id": 1,
         "subnet": "10.99.0.0/24",
+        "user-context": { "pop": "test-pop", "site": "test-site" },
         "pools": [ { "pool": "10.99.0.100 - 10.99.0.200" } ]
       }
     ],
@@ -110,6 +111,7 @@ IP="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["ip"])' "$LEASE
 
 python3 "$HERE/check_audit_log.py" "$AUDIT_LOG" \
     --ip "$IP" --mac "$MAC" --giaddr "$RELAY_IP" \
-    --circuit-id 706f72742d37 --remote-id 0a1b2c3d4e5f
+  --circuit-id 706f72742d37 --remote-id 0a1b2c3d4e5f \
+  --pop test-pop --site test-site
 
 echo "Integration test passed"

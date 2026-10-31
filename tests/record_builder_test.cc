@@ -73,6 +73,8 @@ OptionPtr makeRelayAgentInfo() {
     rai->addOption(subOption(2, {'a', 'b', '1', '2'}));           // remote-id, printable
     rai->addOption(subOption(5, {192, 0, 2, 99}));                // link-selection
     rai->addOption(subOption(6, {'s', 'u', 'b', '1'}));           // subscriber-id, printable
+    rai->addOption(subOption(RAI_OPTION_VSI, {0x00, 0x00, 0x01, 0x23, 0xaa, 0xbb}));
+    rai->addOption(subOption(RAI_OPTION_RELAY_FLAGS, {0x01}));
     return rai;
 }
 
@@ -135,7 +137,23 @@ TEST(RecordBuilder, RelayAgentInformation) {
     EXPECT_EQ("73756231", value(r, "subscriber-id"));
     EXPECT_EQ("sub1", value(r, "subscriber-id-text"));
     EXPECT_EQ("192.0.2.99", value(r, "link-selection"));
-    EXPECT_EQ("1=0004000a,2=61623132,5=c0000263,6=73756231", value(r, "relay-suboptions"));
+    EXPECT_EQ("1=0004000a,2=61623132,5=c0000263,6=73756231,9=00000123aabb,10=01",
+              value(r, "relay-suboptions"));
+    EXPECT_EQ("01", value(r, "relay-flags"));
+    EXPECT_EQ("00000123aabb", value(r, "relay-vendor-specific"));
+}
+
+TEST(RecordBuilder, VendorAndUserClassOptions) {
+    Pkt4Ptr query = makeQuery(makeRelayAgentInfo());
+    query->addOption(OptionPtr(new Option(Option::V4, DHO_VENDOR_CLASS_IDENTIFIER,
+                                          OptionBuffer{'v', 'e', 'n', 'd', 'o', 'r'})));
+    query->addOption(OptionPtr(new Option(Option::V4, DHO_USER_CLASS,
+                                          OptionBuffer{5, 'c', 'l', 'a', 's', 's'})));
+    AuditRecord r = buildRecord("lease-assign", query, makeLease());
+
+    EXPECT_EQ("76656e646f72", value(r, "vendor-class"));
+    EXPECT_EQ("vendor", value(r, "vendor-class-text"));
+    EXPECT_EQ("05636c617373", value(r, "user-class"));
 }
 
 TEST(RecordBuilder, MalformedLinkSelectionIsNotDecoded) {
@@ -162,7 +180,8 @@ TEST(RecordBuilder, NullQueryLeavesPacketAndRelayFieldsEmpty) {
     EXPECT_EQ("192.0.2.10", value(r, "ip-address"));
     for (const char* name : {"message-type", "transaction-id", "interface", "giaddr", "relay-address",
                              "circuit-id", "remote-id", "subscriber-id", "link-selection",
-                             "relay-suboptions"}) {
+                             "relay-suboptions", "vendor-class", "vendor-class-text", "user-class",
+                             "relay-flags", "relay-vendor-specific"}) {
         EXPECT_EQ("", value(r, name)) << name;
     }
 }

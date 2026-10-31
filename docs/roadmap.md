@@ -41,9 +41,10 @@ the end.
      - [x] **6.1** Emit `lease-delete` for every old lease in `deleted_leases4` at
          `leases4_committed`. The record describes the deleted lease and its timestamp marks
          the end of the old assignment.
-7. **More fields.** Vendor class (option 60), user class (option 77), the relay-agent
-   flags and vendor-specific sub-options of option 82, and subnet metadata taken from
-   Kea's `user-context` (for example POP or site name).
+7. **More fields.**
+    - [x] **7.1** Record DHCPv4 vendor class (option 60) and user class (option 77).
+    - [x] **7.2** Expose option-82 relay flags and vendor-specific information as fields.
+    - [x] **7.3** Read string `pop` and `site` values from subnet `user-context` for DHCPv4/v6.
 8. **Server identity for HA.** Add a `server` field (hostname or server-id). With Kea HA,
    two nodes write separate logs and you need to know which node produced each record when
    merging them.

@@ -25,6 +25,8 @@ def main():
     parser.add_argument("--giaddr", required=True)
     parser.add_argument("--circuit-id", required=True)
     parser.add_argument("--remote-id", required=True)
+    parser.add_argument("--pop", required=True)
+    parser.add_argument("--site", required=True)
     args = parser.parse_args()
 
     expected = {
@@ -33,6 +35,13 @@ def main():
         "giaddr": args.giaddr,
         "circuit-id": args.circuit_id,
         "remote-id": args.remote_id,
+        "vendor-class": "746573742d76656e646f72",
+        "vendor-class-text": "test-vendor",
+        "user-class": "05636c617373",
+        "relay-flags": "01",
+        "relay-vendor-specific": "00000123aabb",
+        "pop": args.pop,
+        "site": args.site,
     }
 
     # The release is not answered, so the last record may arrive after the client exits.
