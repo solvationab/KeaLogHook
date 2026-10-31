@@ -44,8 +44,8 @@ jobs:
 
       - name: Build DEB and RPM packages
         run: |
-          cpack --config build/CPackConfig.cmake -G DEB --output-directory build/packages
-          cpack --config build/CPackConfig.cmake -G RPM --output-directory build/packages
+          cpack --config build/CPackConfig.cmake -G DEB -B build/packages
+          cpack --config build/CPackConfig.cmake -G RPM -B build/packages
 
       - uses: actions/upload-artifact@v4
         with:
