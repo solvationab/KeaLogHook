@@ -7,11 +7,13 @@
 
 namespace ip_audit {
 
+inline constexpr char kAuditSchemaVersion[] = "1.0.0";
+
 // Order here is the order used by the record builder and the default JSON output.
 inline const std::vector<std::string>& knownFieldNames() {
     static const std::vector<std::string> names = {
-        "timestamp",     "event",           "server",         "ip-address",
-        "hw-address",
+        "timestamp",     "event",           "schema-version", "server",
+        "ip-address",    "hw-address",
         "client-id",     "hostname",        "vendor-class",   "vendor-class-text",
         "user-class",    "subnet-id",       "pop",            "site",
         "valid-lifetime", "lease-expires",   "message-type",   "transaction-id",

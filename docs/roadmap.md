@@ -47,8 +47,9 @@ the end.
     - [x] **7.3** Read string `pop` and `site` values from subnet `user-context` for DHCPv4/v6.
 8. **Server identity for HA.**
     - [x] **8.1** Include the local server host name in every record to identify its source when merging HA logs.
-9. **Schema version.** Add a `schema-version` field and a documented JSON schema so
-   downstream consumers can rely on the format.
+9. **Schema version.**
+    - [x] **9.1** Add the `1.0.0` `schema-version` field to DHCPv4 and DHCPv6 records.
+    - [x] **9.2** Publish a JSON Schema for default JSON output and document versioning.
 
 ## Compliance and security
 

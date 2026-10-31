@@ -31,6 +31,7 @@ def main():
     args = parser.parse_args()
 
     expected = {
+        "schema-version": "1.0.0",
         "ip-address": args.ip,
         "server": socket.gethostname(),
         "hw-address": args.mac,

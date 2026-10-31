@@ -81,7 +81,7 @@ flowchart LR
 3. Restart or reconfigure Kea. Each lease event now produces one JSON line:
 
    ```json
-  {"timestamp":"2026-10-30T12:00:00.123Z","event":"lease-assign","server":"kea-dhcp4-01","ip-address":"192.0.2.10","hw-address":"aa:bb:cc:dd:ee:ff","subnet-id":1,"valid-lifetime":3600,"circuit-id":"0004000a0001","remote-id":"0a1b2c3d4e5f","giaddr":"192.0.2.1"}
+  {"timestamp":"2026-10-30T12:00:00.123Z","event":"lease-assign","schema-version":"1.0.0","server":"kea-dhcp4-01","ip-address":"192.0.2.10","hw-address":"aa:bb:cc:dd:ee:ff","subnet-id":1,"valid-lifetime":3600,"circuit-id":"0004000a0001","remote-id":"0a1b2c3d4e5f","giaddr":"192.0.2.1"}
    ```
 
 A complete example with both sinks is in [examples/kea-dhcp4.conf](examples/kea-dhcp4.conf).

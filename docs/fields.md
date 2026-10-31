@@ -15,13 +15,21 @@ A sink can subscribe to a subset with the `events` parameter.
 
 ## Fields
 
-Fields are present in every record in this order. A field that has no value is empty and
-is omitted from JSON output unless `include-empty` is set.
+Record builders populate fields in the order listed here. The default JSON formatter omits
+empty values; a custom `fields` list can further restrict the output. With `include-empty`,
+empty strings are included and empty numeric values are emitted as `null`.
+
+Every record has schema version `1.0.0`. The [JSON Schema](audit-record.schema.json)
+describes the default all-fields JSON output. Increment the minor version for additive
+fields, the major version for incompatible changes, and the patch version for clarifications
+that do not change the record structure. Custom field selections may omit schema-required
+properties.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `timestamp` | string | Time of the event, UTC, ISO 8601 with milliseconds (`2026-10-30T12:00:00.123Z`). |
 | `event` | string | One of the events above. |
+| `schema-version` | string | Record schema version. Currently `1.0.0`. |
 | `server` | string | Sanitized local host name, cached by the process to identify which HA server wrote the record. |
 | `ip-address` | string | The leased IPv4/IPv6 address, or the network address of a delegated prefix. |
 | `hw-address` | string | Client MAC address, lowercase hex with colons. |

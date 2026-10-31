@@ -137,6 +137,7 @@ AuditRecord buildRecord(const std::string& event, const Pkt4Ptr& query, const Le
     AuditRecord r;
     r.set("timestamp", nowIso());
     r.set("event", event);
+    r.set("schema-version", kAuditSchemaVersion);
     r.set("server", serverHostname());
     r.set("ip-address", lease->addr_.toText());
     r.set("hw-address", lease->hwaddr_ ? lease->hwaddr_->toText(false) : "");
@@ -231,6 +232,7 @@ AuditRecord buildRecord(const std::string& event, const Pkt6Ptr& query, const Le
     AuditRecord r;
     r.set("timestamp", nowIso());
     r.set("event", event);
+    r.set("schema-version", kAuditSchemaVersion);
     r.set("server", serverHostname());
     r.set("ip-address", lease->addr_.toText());
     r.set("hw-address", lease->hwaddr_ ? lease->hwaddr_->toText(false) : "");

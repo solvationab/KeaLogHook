@@ -61,7 +61,7 @@ The `format` parameter can be omitted (JSON with all non-empty fields), a string
 ```json
 "format": {
   "type": "json",
-  "fields": ["timestamp", "event", "server", "ip-address", "hw-address", "vendor-class-text",
+  "fields": ["timestamp", "event", "schema-version", "server", "ip-address", "hw-address", "vendor-class-text",
              "user-class", "circuit-id", "relay-flags", "relay-vendor-specific", "pop", "site"],
   "include-empty": false
 }

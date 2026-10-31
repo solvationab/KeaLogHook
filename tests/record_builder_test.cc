@@ -93,6 +93,7 @@ TEST(RecordBuilder, FieldsFollowKnownFieldNamesInOrder) {
         names.push_back(f.name);
     }
     EXPECT_EQ(knownFieldNames(), names);
+    EXPECT_EQ(std::string(kAuditSchemaVersion), value(r, "schema-version"));
     EXPECT_FALSE(value(r, "server").empty());
 }
 
@@ -101,6 +102,7 @@ TEST(RecordBuilder, ServerIdentityIsStableAcrossFamilies) {
     AuditRecord v6 = buildRecord("lease-assign", Pkt6Ptr(), makeLease6(Lease::TYPE_NA));
 
     EXPECT_EQ(value(v4, "server"), value(v6, "server"));
+    EXPECT_EQ(value(v4, "schema-version"), value(v6, "schema-version"));
 }
 
 TEST(RecordBuilder, LeaseFields) {
