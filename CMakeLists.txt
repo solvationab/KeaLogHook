@@ -26,7 +26,11 @@ find_program(KEA_MSG_COMPILER NAMES kea-msg-compiler HINTS ${KEA_PREFIX}/sbin ${
 
 set(KEA_LIBS "")
 foreach(lib kea-dhcpsrv kea-dhcp++ kea-hooks kea-log kea-util kea-asiolink kea-cc kea-exceptions)
-    find_library(KEA_LIB_${lib} NAMES ${lib} HINTS ${KEA_PREFIX} PATH_SUFFIXES lib lib64 REQUIRED)
+    set(lib_names ${lib})
+    if("${lib}" STREQUAL "kea-dhcp++")
+        list(APPEND lib_names kea-dhcp)
+    endif()
+    find_library(KEA_LIB_${lib} NAMES ${lib_names} HINTS ${KEA_PREFIX} PATH_SUFFIXES lib lib64 REQUIRED)
     list(APPEND KEA_LIBS ${KEA_LIB_${lib}})
 endforeach()
 
