@@ -18,6 +18,7 @@ set(KEA_HOOKS_DIR "${CMAKE_INSTALL_LIBDIR}/kea/hooks" CACHE STRING "Hook library
 
 find_package(PkgConfig REQUIRED)
 find_package(Boost REQUIRED)
+find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 find_package(Threads REQUIRED)
 pkg_check_modules(ZMQ REQUIRED IMPORTED_TARGET libzmq)
 
@@ -60,7 +61,7 @@ target_include_directories(ip_audit_core PUBLIC
     ${GENERATED_DIR}
     ${KEA_INCLUDE_DIR}
     ${Boost_INCLUDE_DIRS})
-target_link_libraries(ip_audit_core PUBLIC ${KEA_LIBS} PkgConfig::ZMQ Threads::Threads)
+target_link_libraries(ip_audit_core PUBLIC ${KEA_LIBS} OpenSSL::Crypto PkgConfig::ZMQ Threads::Threads)
 target_compile_options(ip_audit_core PRIVATE -Wall -Wextra)
 
 add_library(dhcp_ip_audit MODULE src/callouts.cc)
