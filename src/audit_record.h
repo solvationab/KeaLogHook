@@ -10,7 +10,8 @@ namespace ip_audit {
 // Order here is the order used by the record builder and the default JSON output.
 inline const std::vector<std::string>& knownFieldNames() {
     static const std::vector<std::string> names = {
-        "timestamp",     "event",           "ip-address",     "hw-address",
+        "timestamp",     "event",           "server",         "ip-address",
+        "hw-address",
         "client-id",     "hostname",        "vendor-class",   "vendor-class-text",
         "user-class",    "subnet-id",       "pop",            "site",
         "valid-lifetime", "lease-expires",   "message-type",   "transaction-id",

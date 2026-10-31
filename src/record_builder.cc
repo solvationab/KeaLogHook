@@ -10,6 +10,7 @@
 #include <chrono>
 #include <cstdio>
 #include <ctime>
+#include <unistd.h>
 
 using namespace isc::dhcp;
 using isc::data::ConstElementPtr;
@@ -115,12 +116,24 @@ std::string nowIso() {
     return isoTime(static_cast<std::time_t>(ms / 1000), static_cast<int>(ms % 1000));
 }
 
+const std::string& serverHostname() {
+    static const std::string hostname = [] {
+        char name[256] = {};
+        if (::gethostname(name, sizeof(name) - 1) != 0) {
+            return std::string();
+        }
+        return sanitize(name);
+    }();
+    return hostname;
+}
+
 }
 
 AuditRecord buildRecord(const std::string& event, const Pkt4Ptr& query, const Lease4Ptr& lease) {
     AuditRecord r;
     r.set("timestamp", nowIso());
     r.set("event", event);
+    r.set("server", serverHostname());
     r.set("ip-address", lease->addr_.toText());
     r.set("hw-address", lease->hwaddr_ ? lease->hwaddr_->toText(false) : "");
     r.set("client-id", lease->client_id_ ? lease->client_id_->toText() : "");
@@ -214,6 +227,7 @@ AuditRecord buildRecord(const std::string& event, const Pkt6Ptr& query, const Le
     AuditRecord r;
     r.set("timestamp", nowIso());
     r.set("event", event);
+    r.set("server", serverHostname());
     r.set("ip-address", lease->addr_.toText());
     r.set("hw-address", lease->hwaddr_ ? lease->hwaddr_->toText(false) : "");
     r.set("client-id", "");

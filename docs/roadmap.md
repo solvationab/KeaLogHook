@@ -45,9 +45,8 @@ the end.
     - [x] **7.1** Record DHCPv4 vendor class (option 60) and user class (option 77).
     - [x] **7.2** Expose option-82 relay flags and vendor-specific information as fields.
     - [x] **7.3** Read string `pop` and `site` values from subnet `user-context` for DHCPv4/v6.
-8. **Server identity for HA.** Add a `server` field (hostname or server-id). With Kea HA,
-   two nodes write separate logs and you need to know which node produced each record when
-   merging them.
+8. **Server identity for HA.**
+    - [x] **8.1** Include the local server host name in every record to identify its source when merging HA logs.
 9. **Schema version.** Add a `schema-version` field and a documented JSON schema so
    downstream consumers can rely on the format.
 

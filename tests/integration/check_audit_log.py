@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import socket
 import sys
 import time
 
@@ -31,6 +32,7 @@ def main():
 
     expected = {
         "ip-address": args.ip,
+        "server": socket.gethostname(),
         "hw-address": args.mac,
         "giaddr": args.giaddr,
         "circuit-id": args.circuit_id,

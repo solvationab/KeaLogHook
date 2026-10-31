@@ -22,6 +22,7 @@ is omitted from JSON output unless `include-empty` is set.
 |-------|------|-------------|
 | `timestamp` | string | Time of the event, UTC, ISO 8601 with milliseconds (`2026-10-30T12:00:00.123Z`). |
 | `event` | string | One of the events above. |
+| `server` | string | Sanitized local host name, cached by the process to identify which HA server wrote the record. |
 | `ip-address` | string | The leased IPv4/IPv6 address, or the network address of a delegated prefix. |
 | `hw-address` | string | Client MAC address, lowercase hex with colons. |
 | `client-id` | string | DHCPv4 client identifier (option 61) as hex with colons. |
