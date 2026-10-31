@@ -62,6 +62,7 @@ cat > "$WORK/kea-dhcp4.conf" <<EOF
     "control-socket": { "socket-type": "unix", "socket-name": "$KEA_SOCKET" },
     "lease-database": { "type": "memfile", "persist": false },
     "valid-lifetime": 600,
+    "cache-max-age": 0,
     "subnet4": [
       {
         "id": 1,

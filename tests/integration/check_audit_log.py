@@ -7,7 +7,7 @@ import socket
 import sys
 import time
 
-EXPECTED_EVENTS = ("lease-assign", "lease-delete", "lease-release")
+EXPECTED_EVENTS = ("lease-assign", "lease-renew", "lease-delete", "lease-release")
 
 
 def load(path):
