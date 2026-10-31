@@ -29,7 +29,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake pkg-config \
             kea-dev libzmq3-dev libboost-dev libgtest-dev \
-            kea-dhcp4-server iproute2 python3
+            kea-dhcp4-server iproute2 python3 rpm
           # The package starts a Kea instance on its default configuration; the integration test runs its own.
           sudo systemctl stop kea-dhcp4-server || true
 
@@ -41,6 +41,17 @@ jobs:
 
       - name: Unit tests
         run: ctest --test-dir build --output-on-failure
+
+      - name: Build DEB and RPM packages
+        run: |
+          cpack --config build/CPackConfig.cmake -G DEB --output-directory build/packages
+          cpack --config build/CPackConfig.cmake -G RPM --output-directory build/packages
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ matrix.os }}
+          path: build/packages/*
+          if-no-files-found: error
 
       - name: Install the hook
         run: sudo cmake --install build

@@ -14,7 +14,7 @@ the end.
      - [x] **1.3** GitHub Actions workflow that runs both (see [operations.md](operations.md#testing)).
      - [ ] **1.4** Run CI against more Kea versions and distributions, including Ubuntu 26.04.
      - [ ] **1.5** Add sanitizer (ASan/UBSan) and `-Werror` builds.
-     - [ ] **1.6** Build the DEB/RPM packages in CI.
+     - [x] **1.6** Configure CI to build DEB/RPM packages and upload them as artifacts.
      - [ ] **1.7** Add a multi-threaded stress test.
 2. **Non-blocking delivery.**
      - [x] **2.1** `AuditManager` sends records to a bounded FIFO queue and one sink worker; callouts
