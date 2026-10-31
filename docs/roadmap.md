@@ -12,7 +12,7 @@ the end.
          builder, the sinks and `AuditManager`.
      - [x] **1.2** Integration test with a real Kea and a simulated relay.
      - [x] **1.3** GitHub Actions workflow that runs both (see [operations.md](operations.md#testing)).
-     - [ ] **1.4** Run CI against more Kea versions and distributions, including Ubuntu 26.04.
+        - [x] **1.4** CI covers Ubuntu 24.04 and 26.04, using each distribution's packaged Kea version.
      - [ ] **1.5** Add sanitizer (ASan/UBSan) and `-Werror` builds.
      - [x] **1.6** Configure CI to build DEB/RPM packages and upload them as artifacts.
      - [ ] **1.7** Add a multi-threaded stress test.
@@ -27,9 +27,9 @@ the end.
          client identity and relay metadata. The per-sink cache is bounded to 100,000 IPs.
      - [x] **3.2** Optional per-sink `renewal-rate-limit` caps `lease-renew` records per second;
          `0` disables it. Both settings default to disabled.
-4. **Spool and retry for network sinks.** Write to local disk first and ship from there, so
-   a remote outage loses nothing. ZeroMQ PUB is lossy by design, so the file sink should
-   remain the authoritative record.
+4. **Spool and retry for remote sinks.** PostgreSQL and other remote sinks can fail while
+    DHCP continues. Add durable local spooling and retry/replay so transient outages do not
+    lose records; retain the file sink as the authoritative copy until delivery is confirmed.
 
 ## Traceability coverage
 
@@ -57,6 +57,9 @@ the end.
     - [x] **10.1** Optional daily/hourly UTC rotation in addition to size-based rotation.
     - [x] **10.2** Optional age-based deletion of numbered rotations.
     - [x] **10.3** Optional gzip compression of numbered rotations.
+    - [ ] **10.4** Define PostgreSQL retention and partitioning for event and lease-history
+        tables, including archive/export and coordinated cleanup so retained intervals remain
+        queryable and old personal data is not kept indefinitely.
 11. **Tamper evidence.** Hash chaining or signing of log lines. Document `chattr +a` and
     shipping to write-once storage.
 12. **Privacy controls.** Optional field-level pseudonymisation (for example a keyed hash of
@@ -95,5 +98,16 @@ the end.
 
 ## Suggested order
 
-The PostgreSQL sink (18) and lookup CLI (20) are implemented; the next suggested work is
-downstream integration after the core operational controls and metrics are in place.
+The PostgreSQL sink (18) and lookup CLI (20) are implemented. The remaining work is best
+sequenced by risk and operational value:
+
+1. **Bound database growth and define data lifecycle:** retention/partitioning for PostgreSQL
+    history (10.4), including how exports and cleanup preserve valid lookups.
+2. **Strengthen delivery guarantees:** durable spooling and replay for remote sinks (4), then
+    exercise queue and worker concurrency with the stress test (1.7).
+3. **Harden build quality:** add sanitizer and `-Werror` CI builds (1.5).
+4. **Address compliance controls:** tamper evidence (11), followed by field-level privacy
+    controls (12).
+5. **Improve deployment operations:** config dry-run (16) and the sample operations files (17).
+6. **Extend integrations based on deployment demand:** ZeroMQ security (13) and additional
+    sinks (19).
