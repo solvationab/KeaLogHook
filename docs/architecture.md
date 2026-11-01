@@ -14,7 +14,7 @@ sequenceDiagram
     participant Mgr as AuditManager
     participant Queue as Bounded record queue
     participant Worker as Sink worker
-    participant Sink as Sink (file / zeromq)
+    participant Sink as Sink (file / postgres / zeromq)
 
   Kea->>Callout: leases4_committed or leases6_committed
     Callout->>Builder: buildRecord(event, query, lease)
@@ -46,9 +46,11 @@ sequenceDiagram
 | `src/record_queue.*` | Bounded FIFO queue; rejects new records when full and drains accepted records on shutdown. |
 | `src/sink.h` | The abstract `Sink` interface. |
 | `src/sink_factory.*` | Maps the `type` string of a sink to its implementation. |
-| `src/file_sink.*` | File sink with size-based rotation. |
+| `src/file_sink.*` | File sink with size/time rotation, age-based retention and optional gzip compression. |
+| `src/postgres_sink.*` | PostgreSQL sink with event storage and indexed lease-history intervals. |
 | `src/zmq_sink.*` | ZeroMQ PUB sink. |
 | `src/formatter.*` | `json` and `template` formatters, plus the `Template` placeholder engine. |
+| `scripts/ip_audit_lookup.py` | Offline CLI that reconstructs lease intervals from JSON logs and numbered/compressed rotations. |
 | `src/config_util.*` | Typed, validating accessors for Kea configuration elements. |
 | `src/ip_audit_messages.mes` | Kea log message definitions (compiled by `kea-msg-compiler`). |
 | `src/ip_audit_log.*` | The hook's logger (`ip-audit-hooks`). |
@@ -97,10 +99,19 @@ flowchart TD
     P["hook parameter 'sinks' (JSON list)"] --> M[AuditManager::create]
     M -->|for each sink object| F[SinkFactory::create]
     F -->|"type = file"| FS[createFileSink]
+    F -->|"type = postgres"| PS[createPostgresSink]
     F -->|"type = zeromq"| ZS[createZmqSink]
     FS --> CF[createFormatter]
+    PS --> CF
     ZS --> CF
 ```
 
 Parsing is strict: unknown keys are rejected so typos are caught at load time rather
 than ignored.
+
+## Offline lookup
+
+`ip-audit-lookup` is a separate command-line tool, not a Kea callout or control command. It
+reads the file sink's JSON records and numbered or gzip-compressed rotations, then reports
+the lease intervals that contain a requested IP and timestamp. See
+[operations.md](operations.md#looking-up-lease-history) for usage and limitations.

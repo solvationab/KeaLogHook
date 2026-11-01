@@ -1,0 +1,4 @@
+{
+  "type": "postgres",
+  "connection-string": "host=127.0.0.1 dbname=kea_audit user=kea_audit"
+}

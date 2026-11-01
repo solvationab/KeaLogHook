@@ -19,11 +19,9 @@ DUID/IAID, delegated prefix length, and relay interface-id and remote-id data.
 
 Three sinks are included:
 
-| Sink type | Purpose |
-|-----------|---------|
-| `file`    | Appends records to a log file, with size-based rotation. |
-| `postgres` | Stores every event and maintains indexed lease-history intervals in PostgreSQL. |
-| `zeromq`  | Publishes records on a ZeroMQ PUB socket for real-time consumers. |
+- **File:** Appends records with size/time rotation, age-based retention and optional gzip compression.
+- **PostgreSQL:** Stores every event and maintains indexed lease-history intervals.
+- **ZeroMQ:** Publishes records on a PUB socket for real-time consumers.
 
 The bounded queue keeps slow sinks off the DHCP processing path. Records are dropped if
 the queue fills; the cumulative count is logged when the hook unloads. The default queue
@@ -89,6 +87,8 @@ flowchart LR
 
 A complete example with file and ZeroMQ sinks is in [examples/kea-dhcp4.conf](examples/kea-dhcp4.conf).
 The DHCPv6 configuration example is [examples/kea-dhcp6.conf](examples/kea-dhcp6.conf).
+Minimal sink objects are available for [file](examples/sink-file.json),
+[PostgreSQL](examples/sink-postgres.json), and [ZeroMQ](examples/sink-zeromq.json).
 
 ## Looking Up Lease History
 

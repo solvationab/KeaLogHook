@@ -68,11 +68,11 @@ These observations are removed when the hook unloads. They can be collected thro
 | `type` | string | required | Sink implementation: `file`, `postgres` or `zeromq`. |
 | `name` | string | `<type>-<index>` | Name used in log messages. |
 | `events` | list of strings | all events | Events this sink receives. See [fields.md](fields.md#events). |
-| `format` | string or object | `json` | How a record is turned into text. See below. |
+| `format` | string or object | `json` | How a record is serialized by the sink. See below. |
 
 Unknown parameters are rejected and prevent the library from loading.
 
-The following optional parameters can be used on either sink type:
+The following optional parameters can be used on all sink types:
 
 - `renewals-on-change` (boolean, default `false`) suppresses an unchanged `lease-renew` for
   this sink. A renewal is logged when its IP is first seen or its MAC/client identity or relay
@@ -106,7 +106,8 @@ The `format` parameter can be omitted (JSON with all non-empty fields), a string
 | `fields` | list of strings | all fields | Fields to include, in the given order. Must be names from [fields.md](fields.md#fields). |
 | `include-empty` | boolean | `false` | Include fields whose value is empty (`""`, or `null` for numeric fields). |
 
-String fields are JSON strings; `subnet-id` and `valid-lifetime` are JSON numbers.
+String fields are JSON strings; `subnet-id`, `valid-lifetime`, `iaid` and `prefix-length` are
+JSON numbers when present.
 
 ### `template`
 
@@ -193,6 +194,18 @@ ORDER BY start DESC;
 ```
 
 ## Example
+
+### Minimal sink objects
+
+Each linked file is one sink object, not a complete Kea configuration. Place the object in
+the hook library's `parameters.sinks` list. The PostgreSQL example omits credentials; use
+libpq environment variables or a protected `.pgpass`/service file for authentication.
+
+- **File:** [sink-file.json](../examples/sink-file.json)
+- **PostgreSQL:** [sink-postgres.json](../examples/sink-postgres.json)
+- **ZeroMQ:** [sink-zeromq.json](../examples/sink-zeromq.json)
+
+### Combined example
 
 ```json
 "parameters": {

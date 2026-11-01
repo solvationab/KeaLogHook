@@ -20,7 +20,8 @@ Requirements:
 - `write()` may be called concurrently from several threads. Protect shared state.
 - Throw an exception (preferably `std::runtime_error`) when a record cannot be stored.
   `AuditManager` logs it and continues with the other sinks.
-- Do not block for long. `write()` runs on the DHCP processing path.
+- Do not block indefinitely. `write()` runs on the sink worker, not the DHCP processing path;
+  a slow sink can still fill the bounded queue and cause newer records to be dropped.
 - Acquire resources in the constructor and throw on failure, so that a bad
   configuration is detected when the library loads.
 

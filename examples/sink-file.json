@@ -1,0 +1,4 @@
+{
+  "type": "file",
+  "path": "/var/log/kea/ip-audit.log"
+}
