@@ -74,8 +74,9 @@ Find installed examples and docs with `dpkg-query -L kea-ip-audit-hook` or
 - **Library not found:** use the absolute path from the package file list. Ubuntu uses
   multiarch paths; EL9 normally uses `/usr/lib64/kea/hooks`.
 - **CLI command not found:** check the package file list for `/usr/bin/ip-audit-lookup`
-  `/usr/bin/ip-audit-list`, and `/usr/bin/ip-audit-subscriber`, then check `PATH`. Older
-  packages or installations of only the `.so` files may not contain the commands.
+  `/usr/bin/ip-audit-list`, `/usr/bin/ip-audit-subscriber`, and `/usr/bin/ip-audit-check`,
+  then check `PATH`. Older packages or installations of only the `.so` files may not contain
+  the commands.
 - **No records yet:** the hook records new lease events, not a startup dump of all
   existing leases. Check sink event/field filters and wait for an allocation or renewal.
 - **No CID/RID:** option 82 must actually be supplied by a DHCPv4 relay. Binary IDs
@@ -175,7 +176,7 @@ cpack -G DEB    # kea-ip-audit-hook_1.2.3_amd64.deb
 cpack -G RPM    # kea-ip-audit-hook-1.2.3-1.x86_64.rpm
 ```
 
-The package installs both libraries into Kea's hooks directory, all three CLI commands into
+The package installs both libraries into Kea's hooks directory, all four CLI commands into
 `<prefix>/bin`, their man pages under `<prefix>/<mandir>/man1`, and the README, docs and
 example configurations under `<prefix>/share/doc`. Dependencies on runtime libraries (Kea,
 libzmq and libpq) are detected automatically from the built binary (`dpkg-shlibdeps` is required for
@@ -393,7 +394,7 @@ stale. Use JSON logs with all events and `lease-expires` plus client identity fi
 Input must describe a single allocation domain; independent servers or networks with
 overlapping addresses should be queried separately. Full logs are loaded into memory.
 Both release packages install `/usr/bin/ip-audit-lookup`, `/usr/bin/ip-audit-list`, and
-`/usr/bin/ip-audit-subscriber`.
+`/usr/bin/ip-audit-subscriber`, plus `/usr/bin/ip-audit-check`.
 
 ## Searching subscriber history
 
@@ -432,6 +433,33 @@ access and protect redirected output with the same controls as the source audit 
 search is an offline reconstruction, not a query to Kea's live lease database; incomplete,
 filtered, dropped, or custom field-limited logs can omit events or interval context. Full logs
 are loaded into memory, so pass only the relevant retention period and allocation domain.
+
+## Validating audit logs
+
+`ip-audit-check` scans plain files, numbered rotations, and gzip rotations. It reports record
+counts, event counts, and the earliest/latest valid event timestamps for each file. The
+supported record schema is `1.0.0`.
+
+```sh
+ip-audit-check /var/log/kea/ip-audit.log /var/log/kea/ip-audit6.log
+ip-audit-check --json /var/log/kea/ip-audit.log > audit-check.json
+ip-audit-check --table /var/log/kea/ip-audit.log
+```
+
+Readable text is the default. JSON includes per-file summaries and bounded diagnostic details;
+`--table` emits one TSV table for files and another for diagnostics. Malformed JSON, invalid
+event or expiry timestamps, unsupported schema versions, and unreadable files are errors.
+Missing schema versions, fields required for reconstruction, client identity, or invalid IP
+values are warnings. Missing fields are warnings rather than errors because intentional JSON
+field selection is valid for sinks but can limit later reconstruction. A record without a
+valid event timestamp is excluded from that file's time coverage.
+
+Exit status is `0` when the scan has no errors (warnings are allowed), `1` when one or more
+log errors are found, and `2` when arguments are invalid or no input files can be resolved.
+The scanner continues after record-level errors and reports up to 100 diagnostic details;
+per-file and total error/warning counts include any additional omitted details. It checks the
+available records only and cannot prove that events were lost without sequence numbers or
+another completeness marker.
 
 ## Privacy and security
 

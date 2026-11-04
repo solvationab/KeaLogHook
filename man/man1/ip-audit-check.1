@@ -1,0 +1,79 @@
+.TH IP-AUDIT-CHECK 1 "November 2026" "Kea IP Audit Hook" "User Commands"
+.SH NAME
+ip-audit-check \- validate audit logs and summarize per-file coverage
+.SH SYNOPSIS
+.B ip-audit-check
+.I LOGS
+[
+.I LOGS
+...]
+[
+.B --json
+|
+.B --table
+]
+.SH DESCRIPTION
+.B ip-audit-check
+scans JSON Lines audit logs and reports record counts, event counts, time coverage, errors,
+and reconstruction warnings for each file. It reads plain files and gzip-compressed files.
+.PP
+A base log path includes that file and numbered rotations, including gzip rotations (for
+example,
+.BR ip-audit.log.1.gz ).
+Explicit files and quoted shell glob patterns are also accepted. The supported record schema
+version is 1.0.0.
+.SH OPTIONS
+.TP
+.B -h, --help
+Show the help message and exit.
+.TP
+.B --json
+Write the complete per-file summary and bounded diagnostic details as JSON.
+.TP
+.B --table
+Write tab-separated file summaries and a separate diagnostics table.
+.SH ARGUMENTS
+.TP
+.I LOGS
+One or more log files, base log paths, or quoted glob patterns. A base path includes that
+file and numbered or gzip-compressed rotations.
+.SH DIAGNOSTICS
+Malformed JSON, non-object records, invalid event or expiry timestamps, unsupported schema
+versions, and unreadable files are errors. Missing schema versions, reconstruction fields,
+client identity, and invalid IP values are warnings. Missing fields are warnings because
+intentional JSON field selection may omit fields without making a line corrupt.
+.PP
+The scanner continues after record-level errors. It reports up to 100 diagnostic details;
+per-file and total counts include diagnostics omitted from the detail list. Time coverage
+uses valid event timestamps only.
+.SH OUTPUT
+Readable text is the default. Each file summary includes records scanned, first and last
+valid event timestamps, event counts, and error/warning counts. Table output contains one
+summary table and one diagnostics table. JSON includes supported schema versions, totals,
+per-file summaries, diagnostic details, and the number of omitted details.
+.SH EXIT STATUS
+.TP
+.B 0
+The scan has no errors. Warnings are allowed.
+.TP
+.B 1
+One or more log errors were found.
+.TP
+.B 2
+Invalid arguments or no input files could be resolved.
+.SH LIMITATIONS
+The command validates available records but cannot prove that events were lost unless logs
+include sequence numbers or another completeness marker. Missing reconstruction fields may
+be intentional custom field selection but can limit lease-history reconstruction.
+.SH EXAMPLES
+.EX
+ip-audit-check /var/log/kea/ip-audit.log /var/log/kea/ip-audit6.log
+ip-audit-check --json /var/log/kea/ip-audit.log > audit-check.json
+ip-audit-check --table /var/log/kea/ip-audit.log
+.EE
+.SH SEE ALSO
+.BR ip-audit-lookup (1),
+.BR ip-audit-list (1),
+.BR ip-audit-subscriber (1)
+.SH AUTHOR
+Kea IP Audit Hook contributors.

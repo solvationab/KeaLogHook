@@ -205,6 +205,118 @@ class LookupTests(unittest.TestCase):
             self.assertIn("Matching events: 1", result.stdout)
             self.assertIn("ip=192.0.2.10", result.stdout)
 
+    def test_check_scans_rotations_and_separates_errors_from_warnings(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory) / "audit.log"
+            rotated = Path(str(base) + ".1.gz")
+            with gzip.open(rotated, "wt", encoding="utf-8") as output:
+                output.write(json.dumps(record(
+                    "lease-assign", "2024-12-31T23:00:00Z", "192.0.2.1", "rotated",
+                    "2025-01-01T00:00:00Z", **{"schema-version": "1.0.0"})) + "\n")
+
+            lines = [
+                json.dumps(record(
+                    "lease-assign", "2025-01-01T00:00:00Z", "192.0.2.10", "client-a",
+                    "2025-01-01T02:00:00Z", **{"schema-version": "1.0.0"})),
+                "{not-json",
+                json.dumps(record(
+                    "lease-renew", "not-a-time", "192.0.2.10", "client-a",
+                    "2025-01-01T02:00:00Z", **{"schema-version": "1.0.0"})),
+                json.dumps(record(
+                    "lease-assign", "2025-01-01T01:00:00Z", "192.0.2.11", "client-b",
+                    "2025-01-01T03:00:00Z", **{"schema-version": "9.0.0"})),
+                json.dumps({"timestamp": "2025-01-01T02:00:00Z"}),
+                json.dumps(record(
+                    "lease-expire", "2025-01-01T04:00:00Z", "192.0.2.12", "client-c",
+                    "invalid-expiry", **{"schema-version": "1.0.0"})),
+            ]
+            base.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                status = ip_audit_lookup.check_main([str(base), "--json"])
+            result = json.loads(output.getvalue())
+            self.assertEqual(1, status)
+            self.assertEqual(2, result["totals"]["files"])
+            self.assertEqual(7, result["totals"]["records-scanned"])
+            self.assertEqual(4, result["totals"]["errors"])
+            self.assertGreaterEqual(result["totals"]["warnings"], 3)
+            base_summary = next(item for item in result["files"] if item["file"] == str(base))
+            self.assertEqual("2025-01-01T00:00:00Z", base_summary["first-timestamp"])
+            self.assertEqual("2025-01-01T04:00:00Z", base_summary["last-timestamp"])
+            self.assertEqual(1, base_summary["events"]["<missing>"])
+            codes = {item["code"] for item in result["diagnostics"]}
+            self.assertTrue({"malformed-json", "invalid-timestamp", "unsupported-schema-version",
+                             "missing-reconstruction-fields", "invalid-lease-expires",
+                             "missing-schema-version"}.issubset(codes))
+
+    def test_check_output_formats_and_warning_only_exit_status(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory) / "audit.log"
+            base.write_text(json.dumps({
+                "schema-version": "1.0.0",
+                "timestamp": "2025-01-01T00:00:00Z",
+            }) + "\n", encoding="utf-8")
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                status = ip_audit_lookup.check_main([str(base)])
+            self.assertEqual(0, status)
+            self.assertIn("Errors: 0; warnings:", output.getvalue())
+            self.assertIn("missing-reconstruction-fields", output.getvalue())
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                status = ip_audit_lookup.check_main([str(base), "--table"])
+            self.assertEqual(0, status)
+            self.assertIn("file\trecords-scanned\tfirst-timestamp", output.getvalue())
+            self.assertIn("severity\tfile\tline\tcode\tmessage", output.getvalue())
+
+            command = Path(directory) / "ip-audit-check"
+            shutil.copyfile(ip_audit_lookup.__file__, command)
+            result = subprocess.run([sys.executable, str(command), "--json", str(base)],
+                                    capture_output=True, text=True, check=False)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual(0, json.loads(result.stdout)["totals"]["errors"])
+
+    def test_check_time_coverage_orders_subsecond_timestamps(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory) / "audit.log"
+            records = [
+                record("lease-assign", "2025-01-01T00:00:00.900Z", "192.0.2.10", "client-a",
+                       "2025-01-01T01:00:00Z", **{"schema-version": "1.0.0"}),
+                record("lease-renew", "2025-01-01T00:00:00.100Z", "192.0.2.10", "client-a",
+                       "2025-01-01T02:00:00Z", **{"schema-version": "1.0.0"}),
+            ]
+            base.write_text("".join(json.dumps(item) + "\n" for item in records),
+                            encoding="utf-8")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                status = ip_audit_lookup.check_main([str(base), "--json"])
+            summary = json.loads(output.getvalue())["files"][0]
+            self.assertEqual(0, status)
+            self.assertEqual("2025-01-01T00:00:00.100000Z", summary["first-timestamp"])
+            self.assertEqual("2025-01-01T00:00:00.900000Z", summary["last-timestamp"])
+
+    def test_check_rejects_missing_logs_and_caps_diagnostic_details(self):
+        errors = io.StringIO()
+        with contextlib.redirect_stderr(errors):
+            status = ip_audit_lookup.check_main(["/path/that/does/not/exist"])
+        self.assertEqual(2, status)
+        self.assertIn("ip-audit-check:", errors.getvalue())
+
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory) / "audit.log"
+            base.write_text("{bad-json}\n" * 105, encoding="utf-8")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
+                status = ip_audit_lookup.check_main([str(base), "--json"])
+            result = json.loads(output.getvalue())
+            self.assertEqual(1, status)
+            self.assertEqual(105, result["totals"]["errors"])
+            self.assertEqual(100, len(result["diagnostics"]))
+            self.assertEqual(5, result["diagnostics-omitted"])
+
     def test_ipv6_delegated_prefix_matches_address_until_expiry(self):
         network = ip_audit_lookup.record_network({
             "ip-address": "2001:db8:1::",

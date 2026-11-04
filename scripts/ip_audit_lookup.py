@@ -18,6 +18,9 @@ OPEN_EVENTS = {"lease-assign", "lease-renew"}
 CLOSE_EVENTS = {"lease-delete", "lease-release", "lease-decline", "lease-expire"}
 SUBSCRIBER_IDENTIFIERS = (
     "circuit-id", "remote-id", "subscriber-id", "hw-address", "client-id", "duid")
+SUPPORTED_SCHEMA_VERSIONS = {"1.0.0"}
+RECONSTRUCTION_FIELDS = ("event", "ip-address", "address-family", "lease-expires")
+MAX_CHECK_DIAGNOSTICS = 100
 
 
 @dataclass
@@ -281,6 +284,183 @@ def list_main(argv=None):
     return 0
 
 
+def check_file(path, diagnostics, omitted_diagnostics):
+    first_timestamp = None
+    last_timestamp = None
+    summary = {
+        "file": path,
+        "records-scanned": 0,
+        "first-timestamp": None,
+        "last-timestamp": None,
+        "events": {},
+        "errors": 0,
+        "warnings": 0,
+    }
+
+    def report(severity, code, line_number, message):
+        summary["errors" if severity == "error" else "warnings"] += 1
+        if len(diagnostics) < MAX_CHECK_DIAGNOSTICS:
+            diagnostics.append({
+                "severity": severity,
+                "code": code,
+                "file": path,
+                "line": line_number,
+                "message": message,
+            })
+        else:
+            omitted_diagnostics[0] += 1
+
+    opener = gzip.open if path.endswith(".gz") else open
+    line_number = 0
+    try:
+        with opener(path, "rt", encoding="utf-8") as source:
+            for line_number, line in enumerate(source, 1):
+                if not line.strip():
+                    continue
+                summary["records-scanned"] += 1
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError as error:
+                    report("error", "malformed-json", line_number, str(error))
+                    continue
+                if not isinstance(record, dict):
+                    report("error", "invalid-record", line_number,
+                           "record must be a JSON object")
+                    continue
+
+                event_name = record.get("event")
+                if isinstance(event_name, str) and event_name:
+                    event_key = event_name
+                elif event_name is None or event_name == "":
+                    event_key = "<missing>"
+                else:
+                    event_key = "<invalid>"
+                summary["events"][event_key] = summary["events"].get(event_key, 0) + 1
+
+                try:
+                    timestamp = parse_timestamp(record.get("timestamp"))
+                except ValueError as error:
+                    report("error", "invalid-timestamp", line_number, str(error))
+                else:
+                    if first_timestamp is None or timestamp < first_timestamp:
+                        first_timestamp = timestamp
+                    if last_timestamp is None or timestamp > last_timestamp:
+                        last_timestamp = timestamp
+
+                schema_version = record.get("schema-version")
+                if schema_version is None or schema_version == "":
+                    report("warning", "missing-schema-version", line_number,
+                           "record has no schema-version; custom field selection may omit it")
+                elif not isinstance(schema_version, str) or schema_version not in SUPPORTED_SCHEMA_VERSIONS:
+                    report("error", "unsupported-schema-version", line_number,
+                           "unsupported schema-version %r (supported: %s)" %
+                           (schema_version, ", ".join(sorted(SUPPORTED_SCHEMA_VERSIONS))))
+
+                missing = [field for field in RECONSTRUCTION_FIELDS
+                           if not isinstance(record.get(field), str) or not record.get(field)]
+                if missing:
+                    report("warning", "missing-reconstruction-fields", line_number,
+                           "record omits fields needed for reconstruction: %s" %
+                           ", ".join(missing))
+
+                if record.get("ip-address") and record_network(record) is None:
+                    report("warning", "invalid-ip-address", line_number,
+                           "ip-address cannot be parsed as an address or prefix")
+                if record.get("lease-expires"):
+                    try:
+                        parse_timestamp(record["lease-expires"])
+                    except ValueError as error:
+                        report("error", "invalid-lease-expires", line_number, str(error))
+
+                if record.get("address-family") == "IPv6" and not record.get("lease-type"):
+                    report("warning", "missing-reconstruction-fields", line_number,
+                           "IPv6 record omits lease-type")
+                if record.get("lease-type") == "IA_PD" and not isinstance(
+                        record.get("prefix-length"), int):
+                    report("warning", "missing-reconstruction-fields", line_number,
+                           "delegated prefix record omits prefix-length")
+                if not any(record.get(field) for field in ("client-id", "hw-address", "duid")):
+                    report("warning", "missing-client-identity", line_number,
+                           "record omits client-id, hw-address, and duid")
+    except (OSError, EOFError, gzip.BadGzipFile, UnicodeError) as error:
+        report("error", "file-read-error", line_number or None, str(error))
+
+    summary["first-timestamp"] = format_time(first_timestamp)
+    summary["last-timestamp"] = format_time(last_timestamp)
+    summary["events"] = dict(sorted(summary["events"].items()))
+    return summary
+
+
+def check_main(argv=None):
+    parser = argparse.ArgumentParser(
+        prog="ip-audit-check",
+        description="Validate audit logs and summarize per-file coverage and events.")
+    parser.add_argument("logs", nargs="+", help="log file, base log path, or quoted glob pattern")
+    add_output_format_options(parser)
+    args = parser.parse_args(argv)
+
+    try:
+        paths = expand_log_paths(args.logs)
+    except OSError as error:
+        print("ip-audit-check: %s" % error, file=sys.stderr)
+        return 2
+
+    diagnostics = []
+    omitted_diagnostics = [0]
+    files = [check_file(path, diagnostics, omitted_diagnostics) for path in paths]
+    errors = sum(item["errors"] for item in files)
+    warnings = sum(item["warnings"] for item in files)
+    total_records = sum(item["records-scanned"] for item in files)
+    result = {
+        "schema-versions-supported": sorted(SUPPORTED_SCHEMA_VERSIONS),
+        "totals": {
+            "files": len(files),
+            "records-scanned": total_records,
+            "errors": errors,
+            "warnings": warnings,
+        },
+        "files": files,
+        "diagnostics": diagnostics,
+        "diagnostics-omitted": omitted_diagnostics[0],
+    }
+
+    if args.output_format == "json":
+        json.dump(result, sys.stdout, indent=2)
+        print()
+    elif args.output_format == "table":
+        print("Files")
+        write_table(
+            ["file", "records-scanned", "first-timestamp", "last-timestamp", "events",
+             "errors", "warnings"],
+            [[item["file"], item["records-scanned"], item["first-timestamp"] or "",
+              item["last-timestamp"] or "",
+              json.dumps(item["events"], sort_keys=True, separators=(",", ":")),
+              item["errors"], item["warnings"]] for item in files])
+        print("Diagnostics")
+        write_table(["severity", "file", "line", "code", "message"], [
+            [item["severity"], item["file"], item["line"] or "", item["code"], item["message"]]
+            for item in diagnostics])
+    else:
+        print("Files checked: %d" % result["totals"]["files"])
+        print("Records scanned: %d" % total_records)
+        print("Errors: %d; warnings: %d" % (errors, warnings))
+        for item in files:
+            coverage = "%s .. %s" % (item["first-timestamp"] or "unknown",
+                                      item["last-timestamp"] or "unknown")
+            event_counts = ", ".join("%s=%d" % pair for pair in item["events"].items()) or "none"
+            print("%s: records=%d time=%s events={%s} errors=%d warnings=%d" % (
+                item["file"], item["records-scanned"], coverage, event_counts,
+                item["errors"], item["warnings"]))
+        for item in diagnostics:
+            location = "%s:%s" % (item["file"], item["line"] or "file")
+            print("%s %s [%s] %s" % (
+                item["severity"].upper(), location, item["code"], item["message"]))
+    if omitted_diagnostics[0]:
+        print("ip-audit-check: %d additional diagnostics omitted" % omitted_diagnostics[0],
+              file=sys.stderr)
+    return 1 if errors else 0
+
+
 def interval_for_event(event, intervals):
     network = record_network(event.record)
     if network is None:
@@ -464,6 +644,8 @@ if __name__ == "__main__":
         command = list_main
     elif command_name == "ip-audit-subscriber":
         command = subscriber_main
+    elif command_name == "ip-audit-check":
+        command = check_main
     else:
         command = main
     sys.exit(command())

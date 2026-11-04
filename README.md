@@ -132,6 +132,7 @@ sudo tail -n 1 /var/log/kea/ip-audit.log
 ip-audit-lookup --help
 ip-audit-list --help
 ip-audit-subscriber --help
+ip-audit-check --help
 sudo ip-audit-list /var/log/kea/ip-audit.log
 ```
 
@@ -158,7 +159,7 @@ To list currently allocated addresses and delegated prefixes in readable form:
 ip-audit-list /var/log/kea/ip-audit.log /var/log/kea/ip-audit6.log
 ```
 
-All three commands default to readable output. Add `--json` for JSON or `--table` for
+All four commands default to readable output. Add `--json` for JSON or `--table` for
 tab-separated columns, for example:
 
 ```sh
@@ -177,6 +178,18 @@ ip-audit-subscriber --type circuit-id --value 706f72742d372f33 \
 
 See [docs/operations.md](docs/operations.md#searching-subscriber-history) for supported
 identifiers, output formats, and privacy limitations.
+
+## Validating Audit Logs
+
+`ip-audit-check` reports per-file event counts, time coverage, errors, and reconstruction
+warnings across plain and compressed rotations:
+
+```sh
+ip-audit-check /var/log/kea/ip-audit.log /var/log/kea/ip-audit6.log --json
+```
+
+See [docs/operations.md](docs/operations.md#validating-audit-logs) for severity rules and
+exit codes.
 
 This is inferred from available audit logs, not queried from Kea's live lease database.
 See [docs/operations.md](docs/operations.md#listing-current-allocations) for limitations.

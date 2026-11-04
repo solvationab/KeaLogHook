@@ -113,7 +113,7 @@ the end.
     diagnosing relay or access-network issues.
     Require an explicit identifier type and exact-match semantics; the results contain
     subscriber data and need access controls equivalent to the audit logs.
-24. **Log validation CLI.** [ ] Add `ip-audit-check` to scan files, rotations, and gzip
+24. **Log validation CLI.** [x] Add `ip-audit-check` to scan files, rotations, and gzip
     logs for malformed JSON, invalid timestamps, unsupported schema versions, and
     missing reconstruction fields, then summarize event counts and time coverage by file.
     Show a readable summary by default, with `--json` and `--table` output options.
@@ -130,8 +130,8 @@ the end.
 
 ## Suggested order
 
-The PostgreSQL sink (18), IP lookup (20), current-allocation listing (21), and
-subscriber-history search (23) are implemented. The remaining work is best
+The PostgreSQL sink (18), IP lookup (20), current-allocation listing (21),
+subscriber-history search (23), and log validation (24) are implemented. The remaining work is best
 sequenced by risk and operational value:
 
 1. **Bound database growth and define data lifecycle:** retention/partitioning for PostgreSQL
@@ -142,7 +142,7 @@ sequenced by risk and operational value:
 4. **Address compliance controls:** tamper evidence (11), followed by field-level privacy
     controls (12).
 5. **Improve deployment operations:** config dry-run (16) and the sample operations files (17).
-6. **Complete ISP query tooling:** implement log validation (24), followed by aggregate
-    reporting (25). Reuse the shared log parser and keep routine reports aggregate-only.
+6. **Complete ISP query tooling:** add aggregate reporting (25), reusing the shared log parser
+    while keeping routine reports aggregate-only.
 7. **Extend integrations based on deployment demand:** ZeroMQ security (13) and additional
     sinks (19).

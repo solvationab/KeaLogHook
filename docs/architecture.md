@@ -50,7 +50,7 @@ sequenceDiagram
 | `src/postgres_sink.*` | PostgreSQL sink with event storage and indexed lease-history intervals. |
 | `src/zmq_sink.*` | ZeroMQ PUB sink. |
 | `src/formatter.*` | `json` and `template` formatters, plus the `Template` placeholder engine. |
-| `scripts/ip_audit_lookup.py` | Shared offline implementation for IP lookup, current allocations, and subscriber-history commands over JSON logs and numbered/compressed rotations. |
+| `scripts/ip_audit_lookup.py` | Shared offline implementation for IP lookup, current allocations, subscriber history, and log validation over JSON logs and numbered/compressed rotations. |
 | `src/config_util.*` | Typed, validating accessors for Kea configuration elements. |
 | `src/ip_audit_messages.mes` | Kea log message definitions (compiled by `kea-msg-compiler`). |
 | `src/ip_audit_log.*` | The hook's logger (`ip-audit-hooks`). |
@@ -111,9 +111,11 @@ than ignored.
 
 ## Offline lookup
 
-`ip-audit-lookup`, `ip-audit-list`, and `ip-audit-subscriber` are separate command-line tools,
-not Kea callouts or control commands. They read the file sink's JSON records and numbered or
-gzip-compressed rotations to reconstruct lease intervals. See the operations guide for
+`ip-audit-lookup`, `ip-audit-list`, `ip-audit-subscriber`, and `ip-audit-check` are separate
+command-line tools, not Kea callouts or control commands. They read the file sink's JSON
+records and numbered or gzip-compressed rotations to reconstruct lease intervals or validate
+log integrity. See the operations guide for
 [IP lookup](operations.md#looking-up-lease-history),
 [allocation snapshots](operations.md#listing-current-allocations), and
-[subscriber searches](operations.md#searching-subscriber-history).
+[subscriber searches](operations.md#searching-subscriber-history) and
+[log validation](operations.md#validating-audit-logs).
