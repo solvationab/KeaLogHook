@@ -45,10 +45,12 @@ flowchart LR
     B --> M[AuditManager]
     M -->|event and renewal policies| S1[file sink]
     M -->|event and renewal policies| S2[postgres sink]
-    M -->|event and renewal policies| S3[zeromq sink]
+    M -->|event and renewal policies| S3[syslog sink]
+    M -->|event and renewal policies| S4[zeromq sink]
     S1 --> F[(log file)]
     S2 --> P[(PostgreSQL)]
-    S3 --> Z[ZeroMQ subscribers]
+    S3 --> L[Syslog service / journald]
+    S4 --> Z[ZeroMQ subscribers]
 ```
 
 ## Quick start
@@ -69,7 +71,7 @@ sudo dnf install ./kea-ip-audit-hook-*.rpm
 ```
 
 Run only the command for your distribution, with one matching package in the directory.
-Packages include both hook libraries, `ip-audit-lookup`, `ip-audit-list`, and examples.
+Packages include both hook libraries, all five CLI commands, and examples.
 For a source build, see [Building](docs/operations.md#building).
 
 ### 2. Find the installed hook path
@@ -135,7 +137,6 @@ ip-audit-list --help
 ip-audit-subscriber --help
 ip-audit-check --help
 ip-audit-report --help
-ip-audit-report --help
 sudo ip-audit-list /var/log/kea/ip-audit.log
 ```
 
@@ -171,6 +172,10 @@ ip-audit-list --json /var/log/kea/ip-audit.log > allocations.json
 ip-audit-list --table /var/log/kea/ip-audit.log
 ip-audit-lookup --json 192.0.2.10 2026-10-31T12:00:00Z /var/log/kea/ip-audit.log
 ```
+
+Allocation lists are inferred from available audit events, not queried from Kea's live lease
+database. See [docs/operations.md](docs/operations.md#listing-current-allocations) for
+limitations.
 
 Search a time range for one exact subscriber identifier across address changes:
 
@@ -208,22 +213,6 @@ ip-audit-report --bucket daily --from 2026-10-01T00:00:00Z \
 See [docs/operations.md](docs/operations.md#reporting-aggregate-activity) for bucket sizes,
 filters, and output formats.
 
-## Reporting Aggregate Activity
-
-`ip-audit-report` summarizes event counts by UTC time bucket, POP, site, event, and address
-family without including client or relay identifiers:
-
-```sh
-ip-audit-report --bucket daily --from 2026-10-01T00:00:00Z \
-  --to 2026-11-01T00:00:00Z /var/log/kea/ip-audit.log
-```
-
-See [docs/operations.md](docs/operations.md#reporting-aggregate-activity) for bucket sizes,
-filters, and output formats.
-
-This is inferred from available audit logs, not queried from Kea's live lease database.
-See [docs/operations.md](docs/operations.md#listing-current-allocations) for limitations.
-
 ## Documentation
 
 - [docs/architecture.md](docs/architecture.md) - how the hook works internally
@@ -237,7 +226,7 @@ See [docs/operations.md](docs/operations.md#listing-current-allocations) for lim
 
 - Kea DHCPv4 and/or DHCPv6 with hooks support (development headers and `kea-msg-compiler`)
 - libzmq and libpq (PostgreSQL client library)
-- Python 3.7+ to run the installed lookup/list commands; Python 3 for integration tests
+- Python 3.7+ to run the installed CLI commands; Python 3 for integration tests
 - Boost (headers only)
 - A C++17 compiler and CMake 3.16+
 - Linux or another POSIX system (the file sink uses POSIX I/O)

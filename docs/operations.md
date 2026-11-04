@@ -128,7 +128,7 @@ ctest --test-dir build --output-on-failure
 
 They cover config validation, the formatters and the `Template` engine, the record builder
 (including IPv4 client classes, option 82, subnet context and DHCPv6 IA/relay fields), the file,
-PostgreSQL and ZeroMQ sinks, and
+PostgreSQL, syslog and ZeroMQ sinks, and
 `AuditManager` (event filters including `lease-delete`, renewal filtering and rate limiting,
 queue overflow accounting, StatsMgr metrics, shutdown draining and sink failure isolation).
 The file sink failure test uses `/dev/full`.

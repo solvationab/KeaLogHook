@@ -14,7 +14,7 @@ sequenceDiagram
     participant Mgr as AuditManager
     participant Queue as Bounded record queue
     participant Worker as Sink worker
-    participant Sink as Sink (file / postgres / zeromq)
+    participant Sink as Sink (file / postgres / syslog / zeromq)
 
   Kea->>Callout: leases4_committed or leases6_committed
     Callout->>Builder: buildRecord(event, query, lease)
@@ -112,15 +112,16 @@ flowchart TD
 Parsing is strict: unknown keys are rejected so typos are caught at load time rather
 than ignored.
 
-## Offline lookup
+## Offline CLI tools
 
 `ip-audit-lookup`, `ip-audit-list`, `ip-audit-subscriber`, `ip-audit-check`, and
 `ip-audit-report` are separate
 command-line tools, not Kea callouts or control commands. They read the file sink's JSON
 records and numbered or gzip-compressed rotations to reconstruct lease intervals, validate
-log integrity, or aggregate activity. See the operations guide for
-[IP lookup](operations.md#looking-up-lease-history),
-[allocation snapshots](operations.md#listing-current-allocations), and
-[subscriber searches](operations.md#searching-subscriber-history) and
-[log validation](operations.md#validating-audit-logs) and
-[aggregate reports](operations.md#reporting-aggregate-activity).
+log integrity, or aggregate activity. See the operations guide for:
+
+- [IP lookup](operations.md#looking-up-lease-history)
+- [Allocation snapshots](operations.md#listing-current-allocations)
+- [Subscriber searches](operations.md#searching-subscriber-history)
+- [Log validation](operations.md#validating-audit-logs)
+- [Aggregate reports](operations.md#reporting-aggregate-activity)
