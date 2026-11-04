@@ -102,6 +102,16 @@ ip-audit-lookup 192.0.2.10 2026-10-31T12:00:00Z /var/log/kea/ip-audit.log
 See [docs/operations.md](docs/operations.md#looking-up-lease-history) for event handling and
 exit codes.
 
+To list currently allocated addresses and delegated prefixes with their recorded client
+and relay data as JSON:
+
+```sh
+ip-audit-list /var/log/kea/ip-audit.log /var/log/kea/ip-audit6.log
+```
+
+This is inferred from available audit logs, not queried from Kea's live lease database.
+See [docs/operations.md](docs/operations.md#listing-current-allocations) for limitations.
+
 ## Documentation
 
 - [docs/architecture.md](docs/architecture.md) - how the hook works internally

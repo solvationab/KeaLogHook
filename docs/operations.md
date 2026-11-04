@@ -244,6 +244,37 @@ fields needed for reconstruction (`timestamp`, `event`, `ip-address`, and ideall
 `lease-expires` plus client identity fields); missing expiry or identity fields limit the
 timeline's precision.
 
+## Listing current allocations
+
+The installed `ip-audit-list` command outputs a JSON snapshot of unexpired allocations
+inferred from audit logs. It accepts the same base paths, numbered/gzip rotations, and
+quoted glob patterns as `ip-audit-lookup`:
+
+```sh
+ip-audit-list /var/log/kea/ip-audit.log /var/log/kea/ip-audit6.log
+ip-audit-list /var/log/kea/ip-audit.log --at 2026-11-04T12:00:00Z
+ip-audit-list /var/log/kea/ip-audit.log > allocations.json
+```
+
+The default snapshot time is now (UTC); `--at` selects an explicit timezone-aware time.
+Events after that time are ignored. Output contains `as-of`, `source` (`audit-logs`),
+`count`, and `leases`. Each lease has `network` (an address as /32 or /128, or a delegated
+prefix), reconstructed `start` and `end`, and the complete latest audit `record`, including
+hex and escaped-ASCII CID/RID fields when present. Entries are sorted numerically by
+address, IPv4 before IPv6.
+
+Renewals extend allocations; release, delete, decline, expiry, and reassignment close them.
+An allocation is excluded at its expiry time. Unknown expiry is excluded with a warning
+on stderr. Empty results return success (`0`); unreadable logs, invalid JSON, and invalid
+timestamps return `2` without a partial JSON result.
+
+This command does not query Kea and cannot guarantee an authoritative current lease list.
+Missing, filtered, dropped, or not-yet-written events can make the snapshot incomplete or
+stale. Use JSON logs with all events and `lease-expires` plus client identity fields retained.
+Input must describe a single allocation domain; independent servers or networks with
+overlapping addresses should be queried separately. Full logs are loaded into memory.
+Both release packages install `/usr/bin/ip-audit-list` alongside `/usr/bin/ip-audit-lookup`.
+
 ## Privacy and security
 
 Audit records are personal data. Restrict access accordingly:

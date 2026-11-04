@@ -23,6 +23,9 @@ dnf -y install "$build_dir"/packages/*.rpm
 rpm -ql kea-ip-audit-hook | grep -Fx /usr/bin/ip-audit-lookup
 test "$(command -v ip-audit-lookup)" = /usr/bin/ip-audit-lookup
 ip-audit-lookup --help
+rpm -ql kea-ip-audit-hook | grep -Fx /usr/bin/ip-audit-list
+test "$(command -v ip-audit-list)" = /usr/bin/ip-audit-list
+ip-audit-list --help
 test -x /usr/libexec/kea-ip-audit/security-policy
 test -f /etc/apparmor.d/abstractions/kea-ip-audit
 if ldd /usr/lib64/kea/hooks/libdhcp_ip_audit.so | grep -q "not found"; then

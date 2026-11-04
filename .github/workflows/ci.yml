@@ -104,6 +104,9 @@ jobs:
           dpkg-query -L kea-ip-audit-hook | grep -Fx /usr/bin/ip-audit-lookup
           test "$(command -v ip-audit-lookup)" = /usr/bin/ip-audit-lookup
           ip-audit-lookup --help
+          dpkg-query -L kea-ip-audit-hook | grep -Fx /usr/bin/ip-audit-list
+          test "$(command -v ip-audit-list)" = /usr/bin/ip-audit-list
+          ip-audit-list --help
 
       - name: Integration test (real Kea with a simulated relay)
         run: sudo bash tests/integration/run.sh

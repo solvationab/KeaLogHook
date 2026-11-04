@@ -84,7 +84,7 @@ def expand_log_paths(specifications):
     return sorted(unique.values())
 
 
-def load_events(specifications, query_address):
+def load_events(specifications, query_address=None):
     events = []
     for path in expand_log_paths(specifications):
         opener = gzip.open if path.endswith(".gz") else open
@@ -101,9 +101,10 @@ def load_events(specifications, query_address):
                     raise ValueError("%s:%d: expected a JSON object" % (path, line_number))
 
                 network = record_network(record)
-                if network is None or query_address.version != network.version:
+                if network is None:
                     continue
-                if query_address not in network:
+                if query_address is not None and (
+                        query_address.version != network.version or query_address not in network):
                     continue
                 event_name = record.get("event")
                 if event_name not in OPEN_EVENTS and event_name not in CLOSE_EVENTS:
@@ -206,6 +207,43 @@ def describe_client(record):
     return " ".join(details) if details else "identity unavailable"
 
 
+def list_main(argv=None):
+    parser = argparse.ArgumentParser(
+        prog="ip-audit-list",
+        description="List unexpired allocations inferred from JSON audit logs as JSON.")
+    parser.add_argument("logs", nargs="+", help="log file, base log path, or quoted glob pattern")
+    parser.add_argument("--at", help="timezone-aware ISO 8601 snapshot time (default: now)")
+    args = parser.parse_args(argv)
+
+    try:
+        snapshot_time = parse_timestamp(args.at) if args.at else datetime.now(timezone.utc)
+        events = [event for event in load_events(args.logs) if event.timestamp <= snapshot_time]
+        intervals = reconstruct_intervals(events)
+    except (OSError, ValueError, EOFError, gzip.BadGzipFile) as error:
+        print("ip-audit-list: %s" % error, file=sys.stderr)
+        return 2
+
+    unknown_expiry = sum(interval.end is None for interval in intervals)
+    if unknown_expiry:
+        print("ip-audit-list: omitted %d allocation(s) with unknown expiry" % unknown_expiry,
+              file=sys.stderr)
+    current = [interval for interval in intervals
+               if interval.end is not None and interval.start <= snapshot_time < interval.end]
+    current.sort(key=lambda interval: (
+        interval.network.version, int(interval.network.network_address),
+        interval.network.prefixlen, interval.record.get("lease-type", "")))
+    leases = [{
+        "network": str(interval.network),
+        "start": format_time(interval.start),
+        "end": format_time(interval.end),
+        "record": interval.record,
+    } for interval in current]
+    json.dump({"as-of": format_time(snapshot_time), "source": "audit-logs",
+               "count": len(leases), "leases": leases}, sys.stdout, indent=2)
+    print()
+    return 0
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Reconstruct lease history from JSON audit logs and numbered rotations.")
@@ -247,4 +285,5 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    command = list_main if os.path.basename(sys.argv[0]) == "ip-audit-list" else main
+    sys.exit(command())
