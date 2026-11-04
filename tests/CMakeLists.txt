@@ -16,6 +16,7 @@ add_executable(ip_audit_tests
     postgres_sink_test.cc
     record_queue_test.cc
     record_builder_test.cc
+    syslog_sink_test.cc
     zmq_sink_test.cc)
 
 target_link_libraries(ip_audit_tests PRIVATE ip_audit_core GTest::gtest)

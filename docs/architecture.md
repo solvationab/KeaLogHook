@@ -48,6 +48,7 @@ sequenceDiagram
 | `src/sink_factory.*` | Maps the `type` string of a sink to its implementation. |
 | `src/file_sink.*` | File sink with size/time rotation, age-based retention and optional gzip compression. |
 | `src/postgres_sink.*` | PostgreSQL sink with event storage and indexed lease-history intervals. |
+| `src/syslog_sink.*` | Syslog sink using the host's system logging service. |
 | `src/zmq_sink.*` | ZeroMQ PUB sink. |
 | `src/formatter.*` | `json` and `template` formatters, plus the `Template` placeholder engine. |
 | `scripts/ip_audit_lookup.py` | Shared offline implementation for IP lookup, current allocations, subscriber history, log validation, and aggregate reporting over JSON logs and numbered/compressed rotations. |
@@ -100,9 +101,11 @@ flowchart TD
     M -->|for each sink object| F[SinkFactory::create]
     F -->|"type = file"| FS[createFileSink]
     F -->|"type = postgres"| PS[createPostgresSink]
+    F -->|"type = syslog"| SS[createSyslogSink]
     F -->|"type = zeromq"| ZS[createZmqSink]
     FS --> CF[createFormatter]
     PS --> CF
+    SS --> CF
     ZS --> CF
 ```
 

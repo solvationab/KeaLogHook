@@ -60,6 +60,7 @@ add_library(ip_audit_core STATIC
     src/record_builder.cc
     src/record_queue.cc
     src/sink_factory.cc
+    src/syslog_sink.cc
     src/zmq_sink.cc
     ${GENERATED_DIR}/ip_audit_messages.cc)
 
@@ -96,7 +97,8 @@ install(FILES man/man1/ip-audit-lookup.1 man/man1/ip-audit-list.1
               man/man1/ip-audit-report.1
     DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
 install(FILES examples/kea-dhcp4.conf examples/kea-dhcp6.conf
-          examples/sink-file.json examples/sink-postgres.json examples/sink-zeromq.json
+          examples/sink-file.json examples/sink-postgres.json examples/sink-syslog.json
+          examples/sink-zeromq.json
       DESTINATION ${CMAKE_INSTALL_DOCDIR}/examples)
 install(FILES README.md DESTINATION ${CMAKE_INSTALL_DOCDIR})
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DOCDIR}/docs)
@@ -113,7 +115,7 @@ set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
 set(CPACK_PACKAGE_CONTACT ${PACKAGE_MAINTAINER})
 set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/solvationab/KeaLogHook")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Kea DHCPv4/v6 hook that logs lease assignments and relay data")
-set(CPACK_PACKAGE_DESCRIPTION "Records IPv4/IPv6 lease events and relay identifiers to file, PostgreSQL, or ZeroMQ sinks. Includes ip-audit-lookup, ip-audit-list, ip-audit-subscriber, ip-audit-check, and ip-audit-report for lease history, allocation snapshots, subscriber searches, log validation, and aggregate reports.\nGetting started: https://github.com/solvationab/KeaLogHook#quick-start\nInstallation and operations: https://github.com/solvationab/KeaLogHook/blob/main/docs/operations.md")
+set(CPACK_PACKAGE_DESCRIPTION "Records IPv4/IPv6 lease events and relay identifiers to file, PostgreSQL, syslog, or ZeroMQ sinks. Includes ip-audit-lookup, ip-audit-list, ip-audit-subscriber, ip-audit-check, and ip-audit-report for lease history, allocation snapshots, subscriber searches, log validation, and aggregate reports.\nGetting started: https://github.com/solvationab/KeaLogHook#quick-start\nInstallation and operations: https://github.com/solvationab/KeaLogHook/blob/main/docs/operations.md")
 set(CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 set(CPACK_GENERATOR "DEB;RPM")
 

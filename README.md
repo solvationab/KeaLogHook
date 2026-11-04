@@ -17,10 +17,11 @@ read from Kea's `user-context`. Every record includes the local server host name
 log correlation. DHCPv6 records include IA_NA, IA_TA and IA_PD details,
 DUID/IAID, delegated prefix length, and relay interface-id and remote-id data.
 
-Three sinks are included:
+Four sinks are included:
 
 - **File:** Appends records with size/time rotation, age-based retention and optional gzip compression.
 - **PostgreSQL:** Stores every event and maintains indexed lease-history intervals.
+- **Syslog:** Sends formatted records through the host's syslog service; journald can receive them through its syslog socket.
 - **ZeroMQ:** Publishes records on a PUB socket for real-time consumers.
 
 The bounded queue keeps slow sinks off the DHCP processing path. Records are dropped if
@@ -141,7 +142,8 @@ sudo ip-audit-list /var/log/kea/ip-audit.log
 An extended file/ZeroMQ example is in [examples/kea-dhcp4.conf](examples/kea-dhcp4.conf).
 The DHCPv6 hook fragment is [examples/kea-dhcp6.conf](examples/kea-dhcp6.conf).
 Minimal sink objects are available for [file](examples/sink-file.json),
-[PostgreSQL](examples/sink-postgres.json), and [ZeroMQ](examples/sink-zeromq.json).
+[PostgreSQL](examples/sink-postgres.json), [syslog](examples/sink-syslog.json), and
+[ZeroMQ](examples/sink-zeromq.json).
 
 ## Looking Up Lease History
 

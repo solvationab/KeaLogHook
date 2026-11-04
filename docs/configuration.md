@@ -65,7 +65,7 @@ These observations are removed when the hook unloads. They can be collected thro
 
 | Parameter | Type | Default | Description |
 | ----------- | ------ | --------- | ------------- |
-| `type` | string | required | Sink implementation: `file`, `postgres` or `zeromq`. |
+| `type` | string | required | Sink implementation: `file`, `postgres`, `syslog` or `zeromq`. |
 | `name` | string | `<type>-<index>` | Name used in log messages. |
 | `events` | list of strings | all events | Events this sink receives. See [fields.md](fields.md#events). |
 | `format` | string or object | `json` | How a record is serialized by the sink. See below. |
@@ -161,6 +161,25 @@ Publishes records on a ZeroMQ `PUB` socket.
 ZeroMQ subscription filters match on a prefix of the first frame, so subscribers can
 select events or any other topic structure you build with the `topic` template.
 
+## `syslog` sink
+
+Sends one formatted record through the platform's `syslog(3)` interface. The sink name is
+prefixed to each message. On systemd hosts, journald can collect these messages through its
+syslog socket when configured to accept syslog input; this uses the syslog interface and does
+not create native structured journal fields. Traditional syslog daemons receive messages
+through the same system logging service.
+
+- `facility` (string, default `daemon`): syslog facility `auth`, `authpriv`, `cron`,
+  `daemon`, `ftp`, `kern`, `local0` through `local7`, `lpr`, `mail`, `news`, `syslog`,
+  `user`, or `uucp`.
+- `severity` (string, default `info`): syslog severity `emerg`, `alert`, `crit`, `err`,
+  `warning`, `notice`, `info`, or `debug`.
+
+The common `name` option labels each message, and `format` selects JSON or template text.
+Newlines and control characters in formatted output are replaced so one audit record stays
+on one syslog line. Syslog daemons impose message-size limits and may truncate unusually large
+records. The sink runs on the sink worker, not in the DHCP callout.
+
 ## `postgres` sink
 
 Stores every audit record in `ip_audit_events` as JSONB. It also maintains lease intervals
@@ -205,6 +224,7 @@ libpq environment variables or a protected `.pgpass`/service file for authentica
 
 - **File:** [sink-file.json](../examples/sink-file.json)
 - **PostgreSQL:** [sink-postgres.json](../examples/sink-postgres.json)
+- **Syslog:** [sink-syslog.json](../examples/sink-syslog.json)
 - **ZeroMQ:** [sink-zeromq.json](../examples/sink-zeromq.json)
 
 ### Combined example

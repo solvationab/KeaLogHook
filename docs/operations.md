@@ -491,6 +491,9 @@ Audit records are personal data. Restrict access accordingly:
 - The file sink creates files with mode `0640` by default; change `file-mode` if needed.
 - The ZeroMQ sink has no authentication or encryption. Bind to loopback or a `ipc://`
   endpoint, or place a proxy or tunnel in front of it, rather than exposing it to a network.
+- The syslog sink uses the host logging service. Configure syslog/journald access controls
+  and retention at the system level; journald receives the messages through its syslog input,
+  not as native structured journal fields.
 - Define a retention period and delete or archive old files accordingly.
 - Hostnames and other client-controlled text are sanitised so that a client cannot inject
   control characters or fake log lines.

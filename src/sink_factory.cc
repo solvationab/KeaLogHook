@@ -3,6 +3,7 @@
 #include "config_util.h"
 #include "file_sink.h"
 #include "postgres_sink.h"
+#include "syslog_sink.h"
 #include "zmq_sink.h"
 
 namespace ip_audit {
@@ -10,6 +11,7 @@ namespace ip_audit {
 SinkFactory::SinkFactory() {
     registerType("file", createFileSink);
     registerType("postgres", createPostgresSink);
+    registerType("syslog", createSyslogSink);
     registerType("zeromq", createZmqSink);
 }
 
