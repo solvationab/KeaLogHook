@@ -56,6 +56,44 @@ class LookupTests(unittest.TestCase):
             self.assertEqual(1, status)
             self.assertIn("no matching lease", output.getvalue())
 
+    def test_lookup_json_and_table_formats(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory) / "audit.log"
+            base.write_text(json.dumps(record(
+                "lease-assign", "2025-01-01T00:00:00Z", "192.0.2.10", "client-a",
+                "2025-01-01T01:00:00Z")) + "\n", encoding="utf-8")
+            arguments = ["192.0.2.10", "2025-01-01T00:30:00Z", str(base)]
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                status = ip_audit_lookup.main(arguments + ["--json"])
+            result = json.loads(output.getvalue())
+            self.assertEqual(0, status)
+            self.assertEqual("192.0.2.10", result["query"]["ip"])
+            self.assertEqual("192.0.2.10/32", result["matches"][0]["network"])
+            self.assertEqual("lease-assign", result["events"][0]["event"])
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                status = ip_audit_lookup.main(arguments + ["--table"])
+            self.assertEqual(0, status)
+            self.assertIn("network\tstart\tend\tclient", output.getvalue())
+            self.assertIn("timestamp\tevent\taddress\tclient\tsource\tline", output.getvalue())
+            self.assertIn("lease-assign", output.getvalue())
+
+    def test_output_format_options_are_mutually_exclusive(self):
+        commands = (
+            (ip_audit_lookup.main,
+             ["192.0.2.10", "2025-01-01T00:30:00Z", "audit.log", "--json", "--table"]),
+            (ip_audit_lookup.list_main, ["audit.log", "--json", "--table"]),
+        )
+        for command, arguments in commands:
+            errors = io.StringIO()
+            with contextlib.redirect_stderr(errors), self.assertRaises(SystemExit) as raised:
+                command(arguments)
+            self.assertEqual(2, raised.exception.code)
+            self.assertIn("not allowed with argument", errors.getvalue())
+
     def test_reads_numbered_gzip_rotation_and_ignores_stale_release(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory) / "audit.log"
@@ -134,7 +172,7 @@ class LookupTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 status = ip_audit_lookup.list_main([
-                    str(base), "--at", "2025-01-01T01:00:00Z"])
+                    str(base), "--at", "2025-01-01T01:00:00Z", "--json"])
             self.assertEqual(0, status)
             result = json.loads(output.getvalue())
             self.assertEqual(2, result["count"])
@@ -153,7 +191,7 @@ class LookupTests(unittest.TestCase):
             output, errors = io.StringIO(), io.StringIO()
             with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
                 status = ip_audit_lookup.list_main([
-                    str(base), "--at", "2025-01-01T01:00:00Z"])
+                    str(base), "--at", "2025-01-01T01:00:00Z", "--json"])
             self.assertEqual(0, status)
             self.assertEqual([], json.loads(output.getvalue())["leases"])
             self.assertIn("unknown expiry", errors.getvalue())
@@ -162,7 +200,8 @@ class LookupTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory) / "audit.log"
             base.write_text("not JSON\n", encoding="utf-8")
-            for arguments in ([str(base)], [str(base), "--at", "2025-01-01T00:00:00"]):
+            for arguments in ([str(base), "--json"],
+                              [str(base), "--at", "2025-01-01T00:00:00", "--json"]):
                 output, errors = io.StringIO(), io.StringIO()
                 with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
                     status = ip_audit_lookup.list_main(arguments)
@@ -170,7 +209,7 @@ class LookupTests(unittest.TestCase):
                 self.assertEqual("", output.getvalue())
                 self.assertIn("ip-audit-list:", errors.getvalue())
 
-    def test_installed_list_command_dispatches_and_defaults_to_now(self):
+    def test_list_defaults_to_readable_and_supports_json_and_table(self):
         with tempfile.TemporaryDirectory() as directory:
             command = Path(directory) / "ip-audit-list"
             shutil.copyfile(ip_audit_lookup.__file__, command)
@@ -181,7 +220,19 @@ class LookupTests(unittest.TestCase):
             result = subprocess.run([sys.executable, str(command), str(base)],
                                     capture_output=True, text=True, check=False)
             self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("Active allocations: 1", result.stdout)
+            self.assertIn("192.0.2.10/32", result.stdout)
+
+            result = subprocess.run([sys.executable, str(command), "--json", str(base)],
+                                    capture_output=True, text=True, check=False)
+            self.assertEqual(0, result.returncode, result.stderr)
             self.assertEqual(1, json.loads(result.stdout)["count"])
+
+            result = subprocess.run([sys.executable, str(command), "--table", str(base)],
+                                    capture_output=True, text=True, check=False)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("network\tstart\tend", result.stdout)
+            self.assertIn("192.0.2.10/32", result.stdout)
 
 
 if __name__ == "__main__":

@@ -11,11 +11,16 @@ ip-audit-list \- list unexpired allocations inferred from Kea audit logs
 [
 .I LOGS
 ...]
+[
+.B --json
+|
+.B --table
+]
 .SH DESCRIPTION
 .B ip-audit-list
-reconstructs allocations from Kea IP audit JSON records and writes a JSON snapshot
-of allocations that have not expired at the selected time. It reads plain JSON Lines
-files and gzip-compressed files.
+reconstructs allocations from Kea IP audit JSON records and reports allocations that
+have not expired at the selected time. It reads plain JSON Lines files and gzip-compressed
+files.
 .PP
 A log base path includes that file and its numbered rotations, including gzip-compressed
 rotations (for example,
@@ -30,15 +35,23 @@ default is the current time in UTC.
 .TP
 .B -h, --help
 Show the help message and exit.
+.TP
+.B --json
+Write the complete snapshot as JSON, including each allocation's original audit record.
+.TP
+.B --table
+Write tab-separated columns with a header row.
 .SH ARGUMENTS
 .TP
 .I LOGS
 One or more log files, base log paths, or quoted glob patterns. A base path includes
 that file and its numbered or gzip-compressed rotations.
 .SH OUTPUT
-Writes a JSON object to standard output with the snapshot time, source, allocation count,
-and leases. Each lease contains its network, start and end times, and latest audit record.
-Allocations with unknown expiry are omitted with a warning on standard error.
+By default, prints the snapshot time, allocation count, and a readable line for each
+allocation. JSON output contains the snapshot time, source, allocation count, and leases;
+each lease contains its network, start and end times, and latest audit record. Table output
+contains network, start, end, address family, lease type, and client columns. Allocations
+with unknown expiry are omitted with a warning on standard error.
 .SH EXIT STATUS
 .TP
 .B 0

@@ -345,7 +345,10 @@ pass explicit files or a quoted glob pattern. Gzip rotations are read directly.
 ip-audit-lookup 192.0.2.10 2026-10-31T12:00:00Z /var/log/kea/ip-audit.log
 ```
 
-The timestamp must include a timezone. Assignments open an interval through `lease-expires`;
+The timestamp must include a timezone. Readable text is the default output. Use `--json`
+for structured JSON or `--table` for tab-separated match and event tables. The JSON result
+contains the query, matching lease intervals, and matching events with their source locations
+and original records. Assignments open an interval through `lease-expires`;
 renewals by the same client extend it. A different client closes the prior interval and opens
 a new one. Release, delete, decline and expiry events close a matching client interval, so a
 stale ending event for a previous client does not close a reassignment. Delegated IPv6
@@ -360,18 +363,20 @@ timeline's precision.
 
 ## Listing current allocations
 
-The installed `ip-audit-list` command outputs a JSON snapshot of unexpired allocations
-inferred from audit logs. It accepts the same base paths, numbered/gzip rotations, and
+The installed `ip-audit-list` command reports unexpired allocations inferred from audit logs.
+Readable text is the default; `--json` emits the complete snapshot as JSON and `--table`
+emits tab-separated columns. It accepts the same base paths, numbered/gzip rotations, and
 quoted glob patterns as `ip-audit-lookup`:
 
 ```sh
 ip-audit-list /var/log/kea/ip-audit.log /var/log/kea/ip-audit6.log
 ip-audit-list /var/log/kea/ip-audit.log --at 2026-11-04T12:00:00Z
-ip-audit-list /var/log/kea/ip-audit.log > allocations.json
+ip-audit-list --table /var/log/kea/ip-audit.log
+ip-audit-list --json /var/log/kea/ip-audit.log > allocations.json
 ```
 
 The default snapshot time is now (UTC); `--at` selects an explicit timezone-aware time.
-Events after that time are ignored. Output contains `as-of`, `source` (`audit-logs`),
+Events after that time are ignored. JSON output contains `as-of`, `source` (`audit-logs`),
 `count`, and `leases`. Each lease has `network` (an address as /32 or /128, or a delegated
 prefix), reconstructed `start` and `end`, and the complete latest audit `record`, including
 hex and escaped-ASCII CID/RID fields when present. Entries are sorted numerically by
@@ -380,7 +385,7 @@ address, IPv4 before IPv6.
 Renewals extend allocations; release, delete, decline, expiry, and reassignment close them.
 An allocation is excluded at its expiry time. Unknown expiry is excluded with a warning
 on stderr. Empty results return success (`0`); unreadable logs, invalid JSON, and invalid
-timestamps return `2` without a partial JSON result.
+timestamps return `2` without partial output.
 
 This command does not query Kea and cannot guarantee an authoritative current lease list.
 Missing, filtered, dropped, or not-yet-written events can make the snapshot incomplete or

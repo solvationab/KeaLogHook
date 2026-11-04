@@ -2,6 +2,7 @@
 """Look up the lease history for an address in Kea IP audit logs."""
 
 import argparse
+import csv
 import gzip
 import glob
 import ipaddress
@@ -200,19 +201,36 @@ def format_time(value):
 
 def describe_client(record):
     details = []
-    for field in ("client-id", "hw-address", "duid", "hostname", "server", "circuit-id", "remote-id"):
+    for field in ("client-id", "hw-address", "duid", "hostname", "server", "circuit-id",
+                  "remote-id", "subscriber-id"):
         value = record.get(field)
         if value:
             details.append("%s=%s" % (field, value))
     return " ".join(details) if details else "identity unavailable"
 
 
+def add_output_format_options(parser):
+    formats = parser.add_mutually_exclusive_group()
+    formats.add_argument("--json", dest="output_format", action="store_const", const="json",
+                         help="write machine-readable JSON")
+    formats.add_argument("--table", dest="output_format", action="store_const", const="table",
+                         help="write tab-separated tables")
+    parser.set_defaults(output_format="text")
+
+
+def write_table(headers, rows):
+    writer = csv.writer(sys.stdout, delimiter="\t", lineterminator="\n")
+    writer.writerow(headers)
+    writer.writerows(rows)
+
+
 def list_main(argv=None):
     parser = argparse.ArgumentParser(
         prog="ip-audit-list",
-        description="List unexpired allocations inferred from JSON audit logs as JSON.")
+        description="List unexpired allocations inferred from JSON audit logs.")
     parser.add_argument("logs", nargs="+", help="log file, base log path, or quoted glob pattern")
     parser.add_argument("--at", help="timezone-aware ISO 8601 snapshot time (default: now)")
+    add_output_format_options(parser)
     args = parser.parse_args(argv)
 
     try:
@@ -238,9 +256,26 @@ def list_main(argv=None):
         "end": format_time(interval.end),
         "record": interval.record,
     } for interval in current]
-    json.dump({"as-of": format_time(snapshot_time), "source": "audit-logs",
-               "count": len(leases), "leases": leases}, sys.stdout, indent=2)
-    print()
+    result = {"as-of": format_time(snapshot_time), "source": "audit-logs",
+              "count": len(leases), "leases": leases}
+    if args.output_format == "json":
+        json.dump(result, sys.stdout, indent=2)
+        print()
+    elif args.output_format == "table":
+        print("As of %s" % result["as-of"])
+        write_table(
+            ["network", "start", "end", "address-family", "lease-type", "client"],
+            [[lease["network"], lease["start"], lease["end"],
+              lease["record"].get("address-family", ""),
+              lease["record"].get("lease-type", ""), describe_client(lease["record"])]
+             for lease in leases])
+    else:
+        print("As of %s" % result["as-of"])
+        print("Active allocations: %d" % result["count"])
+        for lease in leases:
+            print("  %s [%s, %s) %s" % (
+                lease["network"], lease["start"], lease["end"],
+                describe_client(lease["record"])))
     return 0
 
 
@@ -250,6 +285,7 @@ def main(argv=None):
     parser.add_argument("ip", help="IPv4 or IPv6 address to look up")
     parser.add_argument("timestamp", help="timezone-aware ISO 8601 query time")
     parser.add_argument("logs", nargs="+", help="log file, base log path, or quoted glob pattern")
+    add_output_format_options(parser)
     args = parser.parse_args(argv)
 
     try:
@@ -264,6 +300,47 @@ def main(argv=None):
     matches = [interval for interval in intervals
                if interval.start <= query_time and
                (interval.end is None or query_time < interval.end)]
+    if args.output_format == "json":
+        result = {
+            "query": {"ip": str(query_address), "timestamp": format_time(query_time)},
+            "matches": [{
+                "network": str(interval.network),
+                "start": format_time(interval.start),
+                "end": format_time(interval.end),
+                "record": interval.record,
+            } for interval in matches],
+            "events": [{
+                "timestamp": format_time(event.timestamp),
+                "event": event.record.get("event", ""),
+                "ip-address": event.record.get("ip-address", ""),
+                "client": describe_client(event.record),
+                "source": event.source,
+                "line": event.line,
+                "record": event.record,
+            } for event in events],
+        }
+        json.dump(result, sys.stdout, indent=2)
+        print()
+        return 0 if matches else 1
+
+    if args.output_format == "table":
+        print("Lease at query time")
+        if matches:
+            write_table(["network", "start", "end", "client"], [
+                [str(interval.network), format_time(interval.start), format_time(interval.end),
+                 describe_client(interval.record)] for interval in matches])
+        else:
+            print("No matching lease")
+        print("Timeline")
+        if events:
+            write_table(["timestamp", "event", "address", "client", "source", "line"], [
+                [format_time(event.timestamp), event.record.get("event", ""),
+                 event.record.get("ip-address", ""), describe_client(event.record),
+                 event.source, event.line] for event in events])
+        else:
+            print("No matching audit events")
+        return 0 if matches else 1
+
     print("Query: %s at %s" % (query_address, format_time(query_time)))
     if matches:
         print("Lease at query time:")
