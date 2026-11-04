@@ -87,8 +87,17 @@ the end.
 18. **Database sink.** [x] PostgreSQL event and lease-history tables with an index on
     `(ip, start, end)` support direct "who had IP X at time T" lookups. See
     [configuration.md](configuration.md#postgres-sink).
-19. **Syslog/journald, Kafka or HTTP sinks.** These suit central log platforms and fit the
-    existing `Sink` interface (see [extending.md](extending.md)).
+19. **Additional sinks.** Each sink should follow the existing `Sink` interface and keep
+    delivery bounded so remote or unavailable services cannot stall DHCP processing. See
+    [extending.md](extending.md).
+    - [ ] **19.1** Add a syslog/journald sink with configurable facility and severity, and
+        document service-manager and traditional syslog deployment differences.
+    - [ ] **19.2** Add a Kafka sink with configurable brokers/topic, TLS/SASL support, and
+        explicit delivery, timeout and queue-full behavior. Coordinate durable retry/replay
+        with item 4.
+    - [ ] **19.3** Add an HTTP sink with configurable endpoint, TLS/authentication, bounded
+        timeouts and clear response/retry behavior. Coordinate durable retry/replay with
+        item 4.
 
 ## Query tooling
 
@@ -145,5 +154,7 @@ sequenced by risk and operational value:
 5. **Improve deployment operations:** config dry-run (16) and the sample operations files (17).
 6. **ISP query tooling is complete:** continue improving validation and aggregate reports as
     deployment experience clarifies their operational needs.
-7. **Extend integrations based on deployment demand:** ZeroMQ security (13) and additional
-    sinks (19).
+7. **Extend integrations based on deployment demand:** ZeroMQ security (13), then the local
+    syslog/journald sink (19.1). Prioritize Kafka (19.2) or HTTP (19.3) when deployment
+    requirements justify their operational and security costs; build on the delivery policy
+    established by durable spooling and retry (4).
