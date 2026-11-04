@@ -74,8 +74,8 @@ Find installed examples and docs with `dpkg-query -L kea-ip-audit-hook` or
 - **Library not found:** use the absolute path from the package file list. Ubuntu uses
   multiarch paths; EL9 normally uses `/usr/lib64/kea/hooks`.
 - **CLI command not found:** check the package file list for `/usr/bin/ip-audit-lookup`
-  and `/usr/bin/ip-audit-list`, then check `PATH`. Older packages or installations of only
-  the `.so` files may not contain the commands.
+  `/usr/bin/ip-audit-list`, and `/usr/bin/ip-audit-subscriber`, then check `PATH`. Older
+  packages or installations of only the `.so` files may not contain the commands.
 - **No records yet:** the hook records new lease events, not a startup dump of all
   existing leases. Check sink event/field filters and wait for an allocation or renewal.
 - **No CID/RID:** option 82 must actually be supplied by a DHCPv4 relay. Binary IDs
@@ -133,8 +133,8 @@ queue overflow accounting, StatsMgr metrics, shutdown draining and sink failure 
 The file sink failure test uses `/dev/full`.
 The PostgreSQL sink test uses the database named by `IP_AUDIT_TEST_DATABASE`; it is skipped
 when that variable is unset. CI supplies a PostgreSQL 16 service.
-The lookup/list CLI tests use only the Python standard library and run with
-`python3 tests/test_lookup.py`. Both installed commands require Python 3.7+.
+The CLI tests use only the Python standard library and run with
+`python3 tests/test_lookup.py`. All installed commands require Python 3.7+.
 Package lifecycle and mocked release-documentation tests run with
 `sh tests/package_policy_test.sh` and `bash tests/release_docs_test.sh`.
 
@@ -175,7 +175,7 @@ cpack -G DEB    # kea-ip-audit-hook_1.2.3_amd64.deb
 cpack -G RPM    # kea-ip-audit-hook-1.2.3-1.x86_64.rpm
 ```
 
-The package installs both libraries into Kea's hooks directory, both CLI commands into
+The package installs both libraries into Kea's hooks directory, all three CLI commands into
 `<prefix>/bin`, their man pages under `<prefix>/<mandir>/man1`, and the README, docs and
 example configurations under `<prefix>/share/doc`. Dependencies on runtime libraries (Kea,
 libzmq and libpq) are detected automatically from the built binary (`dpkg-shlibdeps` is required for
@@ -392,7 +392,46 @@ Missing, filtered, dropped, or not-yet-written events can make the snapshot inco
 stale. Use JSON logs with all events and `lease-expires` plus client identity fields retained.
 Input must describe a single allocation domain; independent servers or networks with
 overlapping addresses should be queried separately. Full logs are loaded into memory.
-Both release packages install `/usr/bin/ip-audit-list` alongside `/usr/bin/ip-audit-lookup`.
+Both release packages install `/usr/bin/ip-audit-lookup`, `/usr/bin/ip-audit-list`, and
+`/usr/bin/ip-audit-subscriber`.
+
+## Searching subscriber history
+
+`ip-audit-subscriber` finds lease events for one explicitly selected identifier across
+address changes. Identifier type and value are required; matches are exact and
+case-sensitive. The time range is required, timezone-aware, and half-open: `--from` is
+included and `--to` is excluded. It reads the same base paths, numbered rotations, gzip
+files, explicit files, and quoted glob patterns as the other log tools.
+
+Supported identifier types map directly to record fields: `circuit-id`, `remote-id`,
+`subscriber-id`, `hw-address`, `client-id`, and `duid`. Binary relay IDs should be supplied
+in the exact representation logged (typically lowercase hex for `circuit-id`, `remote-id`,
+and `subscriber-id`; colon-separated hex for DUID and hardware address).
+
+```sh
+ip-audit-subscriber --type circuit-id --value 706f72742d372f33 \
+  --from 2026-10-01T00:00:00Z --to 2026-11-01T00:00:00Z \
+  /var/log/kea/ip-audit.log
+ip-audit-subscriber --type hw-address --value aa:bb:cc:dd:ee:ff \
+  --from 2026-11-01T00:00:00Z --to 2026-11-02T00:00:00Z \
+  --json /var/log/kea/ip-audit.log
+ip-audit-subscriber --type duid --value 00:01:02:03 \
+  --from 2026-11-01T00:00:00Z --to 2026-11-02T00:00:00Z \
+  --table /var/log/kea/ip-audit6.log
+```
+
+Readable text is the default. `--json` returns identifier/range metadata and each matching
+event's full source record; `--table` emits stable tab-separated columns for timestamps,
+events, addresses, lease interval, family/type, server, and source location. Exit status is
+`0` when matches exist, `1` when none exist, and `2` for invalid input or unreadable/malformed
+logs. A matching lease event with an incomplete interval may have blank lease start/end
+columns if the logs omit the required opening event or expiry information.
+
+Subscriber identifiers and full JSON records are sensitive personal data. Restrict command
+access and protect redirected output with the same controls as the source audit logs. The
+search is an offline reconstruction, not a query to Kea's live lease database; incomplete,
+filtered, dropped, or custom field-limited logs can omit events or interval context. Full logs
+are loaded into memory, so pass only the relevant retention period and allocation domain.
 
 ## Privacy and security
 

@@ -104,7 +104,7 @@ the end.
     release deployment publishes versioned documentation to Cloudsmith and GitHub with
     installation notes and checksums. See
     [operations.md](operations.md#publishing-releases-to-cloudsmith).
-23. **Subscriber-history CLI.** [ ] Add `ip-audit-subscriber` to search a time range by
+23. **Subscriber-history CLI.** [x] Add `ip-audit-subscriber` to search a time range by
     `circuit-id`, `remote-id`, `subscriber-id`, hardware address, client ID, or DUID and
     show the matching lease events across IP addresses. Reuse the lookup tool's log and
     lease-interval handling. Use readable output by default, with `--json` and `--table`
@@ -130,7 +130,8 @@ the end.
 
 ## Suggested order
 
-The PostgreSQL sink (18) and lookup CLI (20) are implemented. The remaining work is best
+The PostgreSQL sink (18), IP lookup (20), current-allocation listing (21), and
+subscriber-history search (23) are implemented. The remaining work is best
 sequenced by risk and operational value:
 
 1. **Bound database growth and define data lifecycle:** retention/partitioning for PostgreSQL
@@ -141,8 +142,7 @@ sequenced by risk and operational value:
 4. **Address compliance controls:** tamper evidence (11), followed by field-level privacy
     controls (12).
 5. **Improve deployment operations:** config dry-run (16) and the sample operations files (17).
-6. **Add ISP query workflows:** implement subscriber history first (23), then log
-    validation (24), followed by aggregate reporting (25). Reuse the existing log parsing
-    and interval reconstruction behavior, and document privacy and completeness limits.
+6. **Complete ISP query tooling:** implement log validation (24), followed by aggregate
+    reporting (25). Reuse the shared log parser and keep routine reports aggregate-only.
 7. **Extend integrations based on deployment demand:** ZeroMQ security (13) and additional
     sinks (19).

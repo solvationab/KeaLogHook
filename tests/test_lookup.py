@@ -86,6 +86,10 @@ class LookupTests(unittest.TestCase):
             (ip_audit_lookup.main,
              ["192.0.2.10", "2025-01-01T00:30:00Z", "audit.log", "--json", "--table"]),
             (ip_audit_lookup.list_main, ["audit.log", "--json", "--table"]),
+            (ip_audit_lookup.subscriber_main, ["--type", "duid", "--value", "x",
+                                               "--from", "2025-01-01T00:00:00Z",
+                                               "--to", "2025-01-02T00:00:00Z", "audit.log",
+                                               "--json", "--table"]),
         )
         for command, arguments in commands:
             errors = io.StringIO()
@@ -126,6 +130,80 @@ class LookupTests(unittest.TestCase):
                 ip_audit_lookup.parse_timestamp("2025-01-01T00:00:00Z"), intervals[0].start)
             self.assertEqual("client-b", matches[0].record["client-id"])
             self.assertEqual("reassigned", intervals[0].ended_by)
+
+    def test_subscriber_search_is_exact_and_includes_interval_history(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory) / "audit.log"
+            rotated = Path(str(base) + ".1.gz")
+            with gzip.open(rotated, "wt", encoding="utf-8") as output:
+                output.write(json.dumps(record(
+                    "lease-assign", "2025-01-01T00:00:00Z", "192.0.2.10", "client-a",
+                    "2025-01-01T08:00:00Z", **{"circuit-id": "port-1"})) + "\n")
+            records = [
+                record("lease-renew", "2025-01-01T01:00:00Z", "192.0.2.10", "client-a",
+                       "2025-01-01T09:00:00Z", **{"circuit-id": "port-1"}),
+                record("lease-assign", "2025-01-01T02:00:00Z", "192.0.2.11", "client-a",
+                       "2025-01-01T10:00:00Z", **{"circuit-id": "port-1"}),
+                record("lease-assign", "2025-01-01T02:00:00Z", "192.0.2.12", "client-b",
+                       "2025-01-01T10:00:00Z", **{"circuit-id": "Port-1"}),
+                record("lease-release", "2025-01-01T03:00:00Z", "192.0.2.10", "client-a",
+                       **{"circuit-id": "port-1"}),
+                record("lease-assign", "2025-01-01T04:00:00Z", "192.0.2.13", "client-a",
+                       "2025-01-01T10:00:00Z", **{"circuit-id": "port-1"}),
+            ]
+            base.write_text("".join(json.dumps(item) + "\n" for item in records),
+                            encoding="utf-8")
+            arguments = ["--type", "circuit-id", "--value", "port-1",
+                         "--from", "2025-01-01T00:00:00Z", "--to", "2025-01-01T04:00:00Z",
+                         str(base)]
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                status = ip_audit_lookup.subscriber_main(arguments + ["--json"])
+            result = json.loads(output.getvalue())
+            self.assertEqual(0, status)
+            self.assertEqual(4, result["count"])
+            self.assertEqual("exact", result["identifier"]["match"])
+            self.assertEqual("[from, to)", result["range"]["semantics"])
+            self.assertEqual({"192.0.2.10", "192.0.2.11"},
+                             {event["ip-address"] for event in result["events"]})
+            self.assertEqual("2025-01-01T00:00:00Z", result["events"][0]["lease-start"])
+            self.assertNotIn("192.0.2.12", output.getvalue())
+            self.assertNotIn("192.0.2.13", output.getvalue())
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                status = ip_audit_lookup.subscriber_main(arguments + ["--table"])
+            self.assertEqual(0, status)
+            self.assertIn("timestamp\tevent\tip-address\tlease-start", output.getvalue())
+            self.assertNotIn("circuit-id", output.getvalue())
+
+    def test_subscriber_search_validates_range_and_identifier(self):
+        base_arguments = ["--type", "hw-address", "--value", "aa:bb",
+                          "--from", "2025-01-02T00:00:00Z",
+                          "--to", "2025-01-01T00:00:00Z", "missing.log"]
+        errors = io.StringIO()
+        with contextlib.redirect_stderr(errors):
+            status = ip_audit_lookup.subscriber_main(base_arguments)
+        self.assertEqual(2, status)
+        self.assertIn("range start must be earlier", errors.getvalue())
+
+    def test_subscriber_command_alias_uses_readable_default(self):
+        with tempfile.TemporaryDirectory() as directory:
+            command = Path(directory) / "ip-audit-subscriber"
+            shutil.copyfile(ip_audit_lookup.__file__, command)
+            base = Path(directory) / "audit.log"
+            base.write_text(json.dumps(record(
+                "lease-assign", "2025-01-01T00:00:00Z", "192.0.2.10", "client-a",
+                "2025-01-01T01:00:00Z", **{"remote-id": "001122"})) + "\n",
+                encoding="utf-8")
+            result = subprocess.run([
+                sys.executable, str(command), "--type", "remote-id", "--value", "001122",
+                "--from", "2025-01-01T00:00:00Z", "--to", "2025-01-02T00:00:00Z",
+                str(base)], capture_output=True, text=True, check=False)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("Matching events: 1", result.stdout)
+            self.assertIn("ip=192.0.2.10", result.stdout)
 
     def test_ipv6_delegated_prefix_matches_address_until_expiry(self):
         network = ip_audit_lookup.record_network({

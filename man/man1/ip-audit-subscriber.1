@@ -1,0 +1,86 @@
+.TH IP-AUDIT-SUBSCRIBER 1 "November 2026" "Kea IP Audit Hook" "User Commands"
+.SH NAME
+ip-audit-subscriber \- search lease events by subscriber identifier
+.SH SYNOPSIS
+.B ip-audit-subscriber
+.B --type
+.I IDENTIFIER_TYPE
+.B --value
+.I VALUE
+.B --from
+.I TIMESTAMP
+.B --to
+.I TIMESTAMP
+.I LOGS
+[
+.I LOGS
+...]
+[
+.B --json
+|
+.B --table
+]
+.SH DESCRIPTION
+.B ip-audit-subscriber
+searches a timezone-aware time range for exact, case-sensitive matches in the selected
+subscriber identifier field. Matching events are shown across the subscriber's IP
+addresses, with reconstructed lease interval context and source-file locations.
+.PP
+The range is half-open: events at
+.I --from
+are included and events at
+.I --to
+are excluded. A base log path includes that file and numbered rotations, including gzip
+rotations. Explicit files and quoted shell glob patterns are also accepted.
+.SH OPTIONS
+.TP
+.BI --type " IDENTIFIER_TYPE"
+Required record field: circuit-id, remote-id, subscriber-id, hw-address, client-id, or duid.
+.TP
+.BI --value " VALUE"
+Required exact value in the representation present in the log. Matching is case-sensitive.
+.TP
+.BI --from " TIMESTAMP"
+Required inclusive ISO 8601 start timestamp with a timezone.
+.TP
+.BI --to " TIMESTAMP"
+Required exclusive ISO 8601 end timestamp with a timezone, later than the start.
+.TP
+.B -h, --help
+Show the help message and exit.
+.TP
+.B --json
+Write identifier and range metadata and matching events, including each full source record.
+.TP
+.B --table
+Write stable tab-separated columns with a header row.
+.SH ARGUMENTS
+.TP
+.I LOGS
+One or more log files, base log paths, or quoted glob patterns. A base path includes
+that file and its numbered or gzip-compressed rotations.
+.SH OUTPUT
+Readable text is the default. Table columns include timestamp, event, IP address, lease
+start/end, address family, lease type, server, and source file/line. JSON includes the
+complete matching source records. Exit status is 0 when matches exist, 1 when no events
+match, and 2 for invalid input or unreadable or malformed logs.
+.SH PRIVACY AND LIMITATIONS
+Identifiers and JSON records are sensitive subscriber data. Restrict access to the command
+and protect redirected output like the audit logs. Results are inferred from available logs,
+not queried from Kea's live database. Missing events or custom field selections can omit
+matches or interval context. Full logs are loaded into memory; use relevant log files and
+one allocation domain at a time.
+.SH EXAMPLES
+.EX
+ip-audit-subscriber --type circuit-id --value 706f72742d372f33 \\
+  --from 2026-10-01T00:00:00Z --to 2026-11-01T00:00:00Z \\
+  /var/log/kea/ip-audit.log
+ip-audit-subscriber --type hw-address --value aa:bb:cc:dd:ee:ff \\
+  --from 2026-11-01T00:00:00Z --to 2026-11-02T00:00:00Z \\
+  --json /var/log/kea/ip-audit.log
+.EE
+.SH SEE ALSO
+.BR ip-audit-lookup (1),
+.BR ip-audit-list (1)
+.SH AUTHOR
+Kea IP Audit Hook contributors.

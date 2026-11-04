@@ -88,7 +88,9 @@ endif()
 install(TARGETS dhcp_ip_audit dhcp6_ip_audit LIBRARY DESTINATION ${KEA_HOOKS_DIR})
 install(PROGRAMS scripts/ip_audit_lookup.py DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME ip-audit-lookup)
 install(PROGRAMS scripts/ip_audit_lookup.py DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME ip-audit-list)
+install(PROGRAMS scripts/ip_audit_lookup.py DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME ip-audit-subscriber)
 install(FILES man/man1/ip-audit-lookup.1 man/man1/ip-audit-list.1
+              man/man1/ip-audit-subscriber.1
     DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
 install(FILES examples/kea-dhcp4.conf examples/kea-dhcp6.conf
           examples/sink-file.json examples/sink-postgres.json examples/sink-zeromq.json
@@ -108,7 +110,7 @@ set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
 set(CPACK_PACKAGE_CONTACT ${PACKAGE_MAINTAINER})
 set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/solvationab/KeaLogHook")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Kea DHCPv4/v6 hook that logs lease assignments and relay data")
-set(CPACK_PACKAGE_DESCRIPTION "Records IPv4/IPv6 lease events and relay identifiers to file, PostgreSQL, or ZeroMQ sinks. Includes ip-audit-lookup for lease history and ip-audit-list for allocation snapshots.\nGetting started: https://github.com/solvationab/KeaLogHook#quick-start\nInstallation and operations: https://github.com/solvationab/KeaLogHook/blob/main/docs/operations.md")
+set(CPACK_PACKAGE_DESCRIPTION "Records IPv4/IPv6 lease events and relay identifiers to file, PostgreSQL, or ZeroMQ sinks. Includes ip-audit-lookup, ip-audit-list, and ip-audit-subscriber for lease history, allocation snapshots, and subscriber searches.\nGetting started: https://github.com/solvationab/KeaLogHook#quick-start\nInstallation and operations: https://github.com/solvationab/KeaLogHook/blob/main/docs/operations.md")
 set(CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 set(CPACK_GENERATOR "DEB;RPM")
 

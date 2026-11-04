@@ -28,6 +28,9 @@ ip-audit-lookup --help
 rpm -ql kea-ip-audit-hook | grep -Fx /usr/bin/ip-audit-list
 test "$(command -v ip-audit-list)" = /usr/bin/ip-audit-list
 ip-audit-list --help
+rpm -ql kea-ip-audit-hook | grep -Fx /usr/bin/ip-audit-subscriber
+test "$(command -v ip-audit-subscriber)" = /usr/bin/ip-audit-subscriber
+ip-audit-subscriber --help
 test -x /usr/libexec/kea-ip-audit/security-policy
 test -f /etc/apparmor.d/abstractions/kea-ip-audit
 if ldd /usr/lib64/kea/hooks/libdhcp_ip_audit.so | grep -q "not found"; then

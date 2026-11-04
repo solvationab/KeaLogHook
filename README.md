@@ -131,6 +131,7 @@ that already exist.
 sudo tail -n 1 /var/log/kea/ip-audit.log
 ip-audit-lookup --help
 ip-audit-list --help
+ip-audit-subscriber --help
 sudo ip-audit-list /var/log/kea/ip-audit.log
 ```
 
@@ -157,7 +158,7 @@ To list currently allocated addresses and delegated prefixes in readable form:
 ip-audit-list /var/log/kea/ip-audit.log /var/log/kea/ip-audit6.log
 ```
 
-Both commands default to readable output. Add `--json` for JSON or `--table` for
+All three commands default to readable output. Add `--json` for JSON or `--table` for
 tab-separated columns, for example:
 
 ```sh
@@ -165,6 +166,17 @@ ip-audit-list --json /var/log/kea/ip-audit.log > allocations.json
 ip-audit-list --table /var/log/kea/ip-audit.log
 ip-audit-lookup --json 192.0.2.10 2026-10-31T12:00:00Z /var/log/kea/ip-audit.log
 ```
+
+Search a time range for one exact subscriber identifier across address changes:
+
+```sh
+ip-audit-subscriber --type circuit-id --value 706f72742d372f33 \
+  --from 2026-10-01T00:00:00Z --to 2026-11-01T00:00:00Z \
+  /var/log/kea/ip-audit.log
+```
+
+See [docs/operations.md](docs/operations.md#searching-subscriber-history) for supported
+identifiers, output formats, and privacy limitations.
 
 This is inferred from available audit logs, not queried from Kea's live lease database.
 See [docs/operations.md](docs/operations.md#listing-current-allocations) for limitations.

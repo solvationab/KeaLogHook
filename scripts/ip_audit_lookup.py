@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 
 OPEN_EVENTS = {"lease-assign", "lease-renew"}
 CLOSE_EVENTS = {"lease-delete", "lease-release", "lease-decline", "lease-expire"}
+SUBSCRIBER_IDENTIFIERS = (
+    "circuit-id", "remote-id", "subscriber-id", "hw-address", "client-id", "duid")
 
 
 @dataclass
@@ -279,6 +281,101 @@ def list_main(argv=None):
     return 0
 
 
+def interval_for_event(event, intervals):
+    network = record_network(event.record)
+    if network is None:
+        return None
+    key = lease_key(event.record, network)
+    matches = [interval for interval in intervals
+               if lease_key(interval.record, interval.network) == key
+               and interval.start <= event.timestamp
+               and (interval.end is None or event.timestamp <= interval.end)
+               and same_client(interval.record, event.record)]
+    return max(matches, key=lambda interval: interval.start) if matches else None
+
+
+def subscriber_main(argv=None):
+    parser = argparse.ArgumentParser(
+        prog="ip-audit-subscriber",
+        description="Search exact subscriber identifiers across audit logs and lease history.")
+    parser.add_argument("--type", dest="identifier_type", required=True,
+                        choices=SUBSCRIBER_IDENTIFIERS,
+                        help="record field used as the exact-match identifier")
+    parser.add_argument("--value", required=True,
+                        help="case-sensitive identifier value exactly as logged")
+    parser.add_argument("--from", dest="range_start", required=True,
+                        help="inclusive timezone-aware ISO 8601 start")
+    parser.add_argument("--to", dest="range_end", required=True,
+                        help="exclusive timezone-aware ISO 8601 end")
+    parser.add_argument("logs", nargs="+", help="log file, base log path, or quoted glob pattern")
+    add_output_format_options(parser)
+    args = parser.parse_args(argv)
+
+    try:
+        if not args.value:
+            raise ValueError("identifier value must not be empty")
+        range_start = parse_timestamp(args.range_start)
+        range_end = parse_timestamp(args.range_end)
+        if range_start >= range_end:
+            raise ValueError("range start must be earlier than range end")
+
+        events = load_events(args.logs)
+        intervals = reconstruct_intervals(events)
+        matches = [event for event in events
+                   if range_start <= event.timestamp < range_end
+                   and event.record.get(args.identifier_type) == args.value]
+        results = []
+        for event in matches:
+            interval = interval_for_event(event, intervals)
+            results.append({
+                "timestamp": format_time(event.timestamp),
+                "event": event.record.get("event", ""),
+                "ip-address": event.record.get("ip-address", ""),
+                "address-family": event.record.get("address-family", ""),
+                "lease-type": event.record.get("lease-type", ""),
+                "lease-start": format_time(interval.start) if interval else "",
+                "lease-end": format_time(interval.end) if interval else "",
+                "server": event.record.get("server", ""),
+                "source": event.source,
+                "line": event.line,
+                "record": event.record,
+            })
+    except (OSError, ValueError, EOFError, gzip.BadGzipFile) as error:
+        print("ip-audit-subscriber: %s" % error, file=sys.stderr)
+        return 2
+
+    result = {
+        "identifier": {"type": args.identifier_type, "value": args.value,
+                       "match": "exact", "case-sensitive": True},
+        "range": {"from": format_time(range_start), "to": format_time(range_end),
+                  "semantics": "[from, to)"},
+        "count": len(results),
+        "events": results,
+    }
+    if args.output_format == "json":
+        json.dump(result, sys.stdout, indent=2)
+        print()
+    elif args.output_format == "table":
+        write_table(
+            ["timestamp", "event", "ip-address", "lease-start", "lease-end",
+             "address-family", "lease-type", "server", "source", "line"],
+            [[row[column] for column in
+              ("timestamp", "event", "ip-address", "lease-start", "lease-end",
+               "address-family", "lease-type", "server", "source", "line")]
+             for row in results])
+    else:
+        print("Identifier: %s=%s (exact, case-sensitive)" %
+              (args.identifier_type, args.value))
+        print("Range: [%s, %s)" % (result["range"]["from"], result["range"]["to"]))
+        print("Matching events: %d" % len(results))
+        for row in results:
+            print("  %s %-13s ip=%s lease=[%s, %s) server=%s (%s:%d)" % (
+                row["timestamp"], row["event"], row["ip-address"],
+                row["lease-start"] or "unknown", row["lease-end"] or "unknown",
+                row["server"] or "unknown", row["source"], row["line"]))
+    return 0 if results else 1
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Reconstruct lease history from JSON audit logs and numbered rotations.")
@@ -362,5 +459,11 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    command = list_main if os.path.basename(sys.argv[0]) == "ip-audit-list" else main
+    command_name = os.path.basename(sys.argv[0])
+    if command_name == "ip-audit-list":
+        command = list_main
+    elif command_name == "ip-audit-subscriber":
+        command = subscriber_main
+    else:
+        command = main
     sys.exit(command())
