@@ -52,41 +52,90 @@ flowchart LR
 
 ## Quick start
 
-1. Build and install (Linux, requires Kea development files, libzmq, libpq and Boost headers):
+### 1. Install a matching package
 
-   ```sh
-  cmake -S . -B build -DKEA_PREFIX=/usr
-   cmake --build build
-   sudo cmake --install build
-   ```
+Download a DEB or RPM from
+[GitHub Releases](https://github.com/solvationab/KeaLogHook/releases), or use the
+Cloudsmith repository's **Set Me Up** link in the release notes. Choose the exact
+distribution and Kea version used by your server; hook binaries are not portable
+across arbitrary Kea versions.
 
-   Or build a DEB/RPM package for easy installation on servers (`cd build && cpack -G DEB`,
-   see [docs/operations.md](docs/operations.md#building-install-packages)).
+```sh
+# Ubuntu: use the downloaded DEB for your Ubuntu release.
+sudo apt install ./kea-ip-audit-hook_*.deb
+# Enterprise Linux 9: use the downloaded EL9 RPM instead.
+sudo dnf install ./kea-ip-audit-hook-*.rpm
+```
 
-2. Add the matching library to the server configuration. Use `libdhcp_ip_audit.so` in
-  `Dhcp4`, or `libdhcp6_ip_audit.so` in `Dhcp6`:
+Run only the command for your distribution, with one matching package in the directory.
+Packages include both hook libraries, `ip-audit-lookup`, `ip-audit-list`, and examples.
+For a source build, see [Building](docs/operations.md#building).
 
-   ```json
-   "hooks-libraries": [
-     {
-       "library": "/usr/lib/kea/hooks/libdhcp_ip_audit.so",
-       "parameters": {
-         "sinks": [
-           { "type": "file", "path": "/var/log/kea/ip-audit.log" }
-         ]
-       }
-     }
-   ]
-   ```
+### 2. Find the installed hook path
 
-3. Restart or reconfigure Kea. Each lease event now produces one JSON line:
+Do not assume `/usr/lib/kea/hooks`: Ubuntu commonly uses a multiarch directory and EL9
+uses `/usr/lib64/kea/hooks`.
 
-   ```json
-  {"timestamp":"2026-10-30T12:00:00.123Z","event":"lease-assign","schema-version":"1.0.0","server":"kea-dhcp4-01","ip-address":"192.0.2.10","hw-address":"aa:bb:cc:dd:ee:ff","subnet-id":1,"valid-lifetime":3600,"circuit-id":"0004000a0001","remote-id":"0a1b2c3d4e5f","giaddr":"192.0.2.1"}
-   ```
+```sh
+dpkg-query -L kea-ip-audit-hook | grep -E 'libdhcp.*ip_audit.so$'  # Ubuntu
+rpm -ql kea-ip-audit-hook | grep -E 'libdhcp.*ip_audit.so$'        # EL9
+```
 
-A complete example with file and ZeroMQ sinks is in [examples/kea-dhcp4.conf](examples/kea-dhcp4.conf).
-The DHCPv6 configuration example is [examples/kea-dhcp6.conf](examples/kea-dhcp6.conf).
+### 3. Configure Kea
+
+Merge the following entry into the `hooks-libraries` list inside your existing `Dhcp4`
+configuration, usually in `/etc/kea/kea-dhcp4.conf`. Replace the example library path
+with the path from step 2. Keep any existing hooks and DHCP settings.
+
+```json
+{
+  "library": "/usr/lib/x86_64-linux-gnu/kea/hooks/libdhcp_ip_audit.so",
+  "parameters": {
+    "sinks": [
+      { "type": "file", "path": "/var/log/kea/ip-audit.log", "format": "json" }
+    ]
+  }
+}
+```
+
+For DHCPv6, use the installed `libdhcp6_ip_audit.so` path in `Dhcp6` and log to
+`/var/log/kea/ip-audit6.log`. These examples are hook fragments, not complete server
+configurations. JSON defaults retain all non-empty fields, including lease expiry and
+CID/RID hex and escaped-ASCII text.
+
+### 4. Check log access and load the hook
+
+The Kea service user needs write access to `/var/log/kea` to create and rotate logs.
+Ubuntu commonly uses `_kea`; verify the account and directory before changing permissions:
+
+```sh
+systemctl show kea-dhcp4-server -p User -p Group
+namei -l /var/log/kea/ip-audit.log
+sudo kea-dhcp4 -t /etc/kea/kea-dhcp4.conf
+sudo systemctl restart kea-dhcp4-server
+sudo journalctl -u kea-dhcp4-server --since "5 minutes ago" --no-pager
+```
+
+Restart only during an acceptable DHCP service interruption. EL9 service names may
+differ (`kea-dhcp4`); use your distribution's unit and configuration paths. Look for
+`IP_AUDIT_LOAD_OK`. If loading fails, find the preceding `IP_AUDIT_LOAD_FAILED` reason.
+Package AppArmor rules cover the default audit paths; custom paths need administrator
+policy. See [Package security policy](docs/operations.md#package-security-policy).
+
+### 5. Verify records and commands
+
+Trigger a client allocation or renewal; installing the hook does not backfill leases
+that already exist.
+
+```sh
+sudo tail -n 1 /var/log/kea/ip-audit.log
+ip-audit-lookup --help
+ip-audit-list --help
+sudo ip-audit-list /var/log/kea/ip-audit.log
+```
+
+An extended file/ZeroMQ example is in [examples/kea-dhcp4.conf](examples/kea-dhcp4.conf).
+The DHCPv6 hook fragment is [examples/kea-dhcp6.conf](examples/kea-dhcp6.conf).
 Minimal sink objects are available for [file](examples/sink-file.json),
 [PostgreSQL](examples/sink-postgres.json), and [ZeroMQ](examples/sink-zeromq.json).
 
@@ -121,11 +170,11 @@ See [docs/operations.md](docs/operations.md#listing-current-allocations) for lim
 - [docs/operations.md](docs/operations.md) - building, testing, deploying, consuming data, privacy and limitations
 - [docs/roadmap.md](docs/roadmap.md) - suggested improvements for ISP use
 
-## Requirements
+## Build Requirements
 
 - Kea DHCPv4 and/or DHCPv6 with hooks support (development headers and `kea-msg-compiler`)
 - libzmq and libpq (PostgreSQL client library)
-- Python 3 to run the lookup CLI and integration tests
+- Python 3.7+ to run the installed lookup/list commands; Python 3 for integration tests
 - Boost (headers only)
 - A C++17 compiler and CMake 3.16+
 - Linux or another POSIX system (the file sink uses POSIX I/O)

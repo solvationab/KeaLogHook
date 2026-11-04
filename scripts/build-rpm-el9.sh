@@ -20,6 +20,8 @@ cpack --config "$build_dir/CPackConfig.cmake" -G RPM -B "$build_dir/packages"
 
 sh /src/tests/package_policy_test.sh
 dnf -y install "$build_dir"/packages/*.rpm
+rpm -q --queryformat '%{URL}\n' kea-ip-audit-hook | grep -Fx https://github.com/solvationab/KeaLogHook
+rpm -q --queryformat '%{DESCRIPTION}\n' kea-ip-audit-hook | grep -F docs/operations.md
 rpm -ql kea-ip-audit-hook | grep -Fx /usr/bin/ip-audit-lookup
 test "$(command -v ip-audit-lookup)" = /usr/bin/ip-audit-lookup
 ip-audit-lookup --help

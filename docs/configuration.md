@@ -17,7 +17,7 @@ Kea configuration. Use `libdhcp_ip_audit.so` in `Dhcp4`, or `libdhcp6_ip_audit.s
 ## Top-level parameters
 
 | Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
+| ----------- | ------ | ---------- | ------------- |
 | `queue-size` | integer (1-1000000) | no | Maximum number of records waiting for sink delivery. Default: `10000`. When full, new records are dropped and counted; the count is logged when the hook unloads. |
 | `sinks` | list of objects | yes | One or more sink definitions. Every record is delivered to each sink that subscribes to its event. |
 
@@ -50,7 +50,7 @@ statistics manager. Names are protocol-specific: `ip-audit-dhcp4-<metric>` or
 `ip-audit-dhcp6-<metric>`. Kea's statistics manager controls sample retention.
 
 | Metric suffix | Meaning |
-|---------------|---------|
+| --------------- | --------- |
 | `queue-depth` | Records currently waiting in the bounded queue; excludes the record being written. |
 | `queue-capacity` | Configured queue size. |
 | `sink-count` | Number of configured sinks. |
@@ -64,7 +64,7 @@ These observations are removed when the hook unloads. They can be collected thro
 ## Parameters common to all sinks
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+| ----------- | ------ | --------- | ------------- |
 | `type` | string | required | Sink implementation: `file`, `postgres` or `zeromq`. |
 | `name` | string | `<type>-<index>` | Name used in log messages. |
 | `events` | list of strings | all events | Events this sink receives. See [fields.md](fields.md#events). |
@@ -95,14 +95,16 @@ The `format` parameter can be omitted (JSON with all non-empty fields), a string
 ```json
 "format": {
   "type": "json",
-  "fields": ["timestamp", "event", "schema-version", "server", "ip-address", "hw-address", "vendor-class-text",
-             "user-class", "circuit-id", "relay-flags", "relay-vendor-specific", "pop", "site"],
+  "fields": ["timestamp", "event", "schema-version", "server", "ip-address", "hw-address",
+             "client-id", "duid", "lease-expires", "address-family", "lease-type", "prefix-length",
+             "vendor-class-text", "user-class", "circuit-id", "circuit-id-text", "remote-id",
+             "remote-id-text", "relay-flags", "relay-vendor-specific", "pop", "site"],
   "include-empty": false
 }
 ```
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+| ----------- | ------ | --------- | ------------- |
 | `fields` | list of strings | all fields | Fields to include, in the given order. Must be names from [fields.md](fields.md#fields). |
 | `include-empty` | boolean | `false` | Include fields whose value is empty (`""`, or `null` for numeric fields). |
 
@@ -127,7 +129,7 @@ Any other text is copied verbatim.
 Appends one formatted record per line.
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+| ----------- | ------ | --------- | ------------- |
 | `path` | string | required | Path of the log file. The directory must exist and be writable by the Kea user. |
 | `file-mode` | octal string | `"0640"` | Permission bits used when the file is created. |
 | `max-size` | integer (bytes) | `0` | Rotate before the file would exceed this size. `0` disables rotation. |
@@ -147,7 +149,7 @@ numbered order (for example, `path.1.gz`).
 Publishes records on a ZeroMQ `PUB` socket.
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+| ----------- | ------ | --------- | ------------- |
 | `endpoint` | string | required | ZeroMQ endpoint, e.g. `tcp://127.0.0.1:5556` or `ipc:///run/kea/audit.sock`. |
 | `mode` | `"bind"` or `"connect"` | `"bind"` | Whether the hook binds the endpoint (subscribers connect) or connects to it (e.g. to an XSUB proxy). |
 | `topic` | string | `""` | Topic template. May contain `%{field}` placeholders, e.g. `"ip-audit.%{event}"`. |
@@ -169,7 +171,7 @@ delete, decline and expiry events close a matching interval at the event timesta
 records are retained separately even when no lease interval can be matched.
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+| ----------- | ------ | --------- | ------------- |
 | `connection-string` | string | required | libpq connection string, for example `host=127.0.0.1 dbname=kea_audit user=kea_audit`. Use PostgreSQL's standard `PG*` environment variables or a protected service file for credentials. |
 
 `format` must be `json` (the default). Its optional `fields` list and `include-empty` setting

@@ -1,11 +1,104 @@
 # Building, operating and limitations
 
+## Installing release packages
+
+Start with the [README quick start](../README.md#quick-start) to install, configure,
+and verify the hook. Download packages and matching documentation from
+[GitHub Releases](https://github.com/solvationab/KeaLogHook/releases).
+
+| Target | Release asset suffix | Cloudsmith target | Typical DHCPv4 unit |
+| ------ | -------------------- | ----------------- | ------------------- |
+| Ubuntu 24.04, x86-64 | `_noble.deb` | `ubuntu/noble` | `kea-dhcp4-server` |
+| Ubuntu 26.04, x86-64 | `_resolute.deb` | `ubuntu/resolute` | `kea-dhcp4-server` |
+| EL9, x86-64 | `_el9.rpm` | `el/9` | `kea-dhcp4` |
+
+Use the package for your distribution, architecture, and installed Kea version. Release
+packages use the distribution's Kea libraries (EPEL Kea on EL9), not arbitrary ISC or
+third-party builds. Install the Kea DHCP server separately if it is not already present.
+Build from source for other targets. Rebuild the hook whenever Kea is upgraded.
+
+### Install from Cloudsmith
+
+Each release links to the configured Cloudsmith repository and its **Set Me Up** page.
+Select Debian/Ubuntu or RPM instructions for your target and follow the generated signing-key
+and repository setup steps. For a private repository, use the access method supplied by
+your administrator; never commit repository credentials to configuration examples.
+
+Once the repository is configured, run only the command for your distribution:
+
+```sh
+sudo apt update
+sudo apt install kea-ip-audit-hook          # Ubuntu
+sudo dnf install kea-ip-audit-hook          # EL9
+```
+
+You can inspect package metadata before installation with `apt show kea-ip-audit-hook`
+or `dnf info kea-ip-audit-hook`. Homepage/URL and description fields link back to GitHub
+and the getting-started documentation. The Cloudsmith package named `kea-ip-audit-docs`
+contains the README, docs and examples for a specific release.
+
+### Install a downloaded package
+
+Download a single matching DEB or RPM and `SHA256SUMS` from the same GitHub release.
+To verify that one download matches its published checksum:
+
+```sh
+sha256sum --ignore-missing -c SHA256SUMS
+sudo apt install ./kea-ip-audit-hook_*_noble.deb    # Ubuntu 24.04 example
+sudo dnf install ./kea-ip-audit-hook-*_el9.rpm      # EL9 alternative
+```
+
+Run the matching install command, not both. Checksums detect download corruption;
+they are not independent publisher signatures. Use Cloudsmith's signing-key/repository
+instructions for normal package-manager verification. If the required Kea dependencies
+cannot be resolved, check the target distribution and Kea package source rather than
+forcing installation or bypassing dependency checks.
+
+Packages do not edit Kea configuration, create log directories, change log ownership, or
+restart DHCP. Follow the [quick start](../README.md#quick-start) after installation.
+Find installed examples and docs with `dpkg-query -L kea-ip-audit-hook` or
+`rpm -ql kea-ip-audit-hook`; they are under `/usr/share/doc` in release packages.
+
+### Troubleshooting first startup
+
+- **Hook does not load:** look for `IP_AUDIT_LOAD_FAILED` before Kea's generic
+  `HOOKS_LOAD_ERROR`. It contains the sink or configuration failure.
+- **Permission denied:** inspect `systemctl show <unit> -p User -p Group` and
+  `namei -l /var/log/kea/ip-audit.log`. The service account needs directory traversal
+  and write access for log creation/rotation. If the directory is absent, create it
+  using the verified daemon account: on Ubuntu with `_kea`, for example,
+  `sudo install -d -o _kea -g _kea -m 0750 /var/log/kea`. Do not change ownership of an
+  existing shared log directory blindly or use world-writable permissions.
+- **Permissions look correct:** check `journalctl -k -b` for a Kea AppArmor or SELinux
+  denial. See [Package security policy](#package-security-policy). Do not disable enforcement.
+- **Library not found:** use the absolute path from the package file list. Ubuntu uses
+  multiarch paths; EL9 normally uses `/usr/lib64/kea/hooks`.
+- **CLI command not found:** check the package file list for `/usr/bin/ip-audit-lookup`
+  and `/usr/bin/ip-audit-list`, then check `PATH`. Older packages or installations of only
+  the `.so` files may not contain the commands.
+- **No records yet:** the hook records new lease events, not a startup dump of all
+  existing leases. Check sink event/field filters and wait for an allocation or renewal.
+- **No CID/RID:** option 82 must actually be supplied by a DHCPv4 relay. Binary IDs
+  appear as hex plus escaped ASCII, not decoded vendor-specific structures.
+- **Listing is incomplete:** preserve all events and `lease-expires` plus client
+  identities; use JSON logs and include rotations. Audit snapshots are not live lease queries.
+
 ## Building
 
 Requirements: Kea development headers and libraries (`kea-dhcpsrv`, `kea-dhcp++`,
 `kea-hooks`, `kea-log`, `kea-stats`, `kea-util`, `kea-cc`, `kea-exceptions`), `kea-msg-compiler`,
 libzmq (found through `pkg-config`), libpq, Boost headers, OpenSSL Crypto and zlib development files,
 a C++17 compiler, CMake 3.16+.
+
+On Ubuntu, install the build dependencies first:
+
+```sh
+sudo apt update
+sudo apt install git build-essential cmake pkg-config kea-dev kea-dhcp4-server \
+  libzmq3-dev libpq-dev libboost-dev libssl-dev zlib1g-dev libgtest-dev dpkg-dev python3
+git clone https://github.com/solvationab/KeaLogHook.git
+cd KeaLogHook
+```
 
 ```sh
 cmake -S . -B build -DKEA_PREFIX=/usr
@@ -14,7 +107,7 @@ sudo cmake --install build
 ```
 
 | CMake variable | Default | Meaning |
-|----------------|---------|---------|
+| ---------------- | --------- | --------- |
 | `KEA_PREFIX` | `/usr` | Where Kea is installed. Also the default install prefix. |
 | `KEA_HOOKS_DIR` | `<libdir>/kea/hooks` | Hook directory relative to the install prefix. `<libdir>` follows the distribution (`lib64` on RPM systems, `lib/<multiarch>` on Debian). |
 | `KEA_IP_AUDIT_VERSION` | `0.1.0` | Numeric `MAJOR.MINOR.PATCH` version used in DEB/RPM package metadata. |
@@ -40,8 +133,10 @@ queue overflow accounting, StatsMgr metrics, shutdown draining and sink failure 
 The file sink failure test uses `/dev/full`.
 The PostgreSQL sink test uses the database named by `IP_AUDIT_TEST_DATABASE`; it is skipped
 when that variable is unset. CI supplies a PostgreSQL 16 service.
-The lookup CLI tests use only the Python standard library and run with
-`python3 tests/test_lookup.py`. Python 3 is also required to run the installed `ip-audit-lookup`.
+The lookup/list CLI tests use only the Python standard library and run with
+`python3 tests/test_lookup.py`. Both installed commands require Python 3.7+.
+Package lifecycle and mocked release-documentation tests run with
+`sh tests/package_policy_test.sh` and `bash tests/release_docs_test.sh`.
 
 The integration test starts a real `kea-dhcp4` with the installed hook and drives it with a
 simulated relay agent (`tests/integration/relay_client.py`) in a separate network namespace.
@@ -50,6 +145,14 @@ The relay performs DISCOVER, REQUEST, a renewal and a RELEASE with option 82, an
 root, `iproute2`, `python3` and
 `kea-dhcp4`, and uses a veth pair named `ipa-kea` / `ipa-relay` and the network `10.99.0.0/24`.
 
+```sh
+sudo cmake --install build
+sudo bash tests/integration/run.sh
+```
+
+Tests run in CI on every push and pull request (`.github/workflows/ci.yml`) on Ubuntu 24.04
+and 26.04, using each runner's packaged Kea version.
+
 ## Statistics
 
 The hook publishes queue depth/capacity, sink count, dropped records, successful sink writes,
@@ -57,14 +160,6 @@ and write failures to Kea's statistics manager once per second. Kea controls how
 are retained. Metrics are prefixed with
 `ip-audit-dhcp4-` or `ip-audit-dhcp6-`; they are removed when the corresponding hook unloads.
 Collect them with Kea's `statistic-get` command or a compatible statistics exporter.
-
-```sh
-sudo cmake --install build
-sudo bash tests/integration/run.sh
-```
-
-Both run in CI on every push and pull request (`.github/workflows/ci.yml`) on Ubuntu 24.04
-and 26.04, using each runner's packaged Kea version.
 
 ## Building install packages
 
@@ -80,7 +175,8 @@ cpack -G DEB    # kea-ip-audit-hook_1.2.3_amd64.deb
 cpack -G RPM    # kea-ip-audit-hook-1.2.3-1.x86_64.rpm
 ```
 
-The package installs both libraries into Kea's hooks directory and the README, docs and
+The package installs both libraries into Kea's hooks directory, both CLI commands into
+`<prefix>/bin`, and the README, docs and
 example configurations under `<prefix>/share/doc`. Dependencies on runtime libraries (Kea,
 libzmq and libpq) are detected automatically from the built binary (`dpkg-shlibdeps` is required for
 DEB; `rpmbuild` for RPM). The package does not modify Kea configuration; add the appropriate
@@ -112,6 +208,14 @@ only after those jobs succeed:
 - Ubuntu 26.04 DEB to `ubuntu/resolute`
 - Enterprise Linux 9 RPM to `el/9`
 
+After package uploads succeed, it also publishes `kea-ip-audit-docs` as a versioned raw
+Cloudsmith package and creates or updates the GitHub release for the tag. Release assets
+include distro-qualified DEBs/RPMs (so Ubuntu assets do not collide), a documentation
+archive, and `SHA256SUMS`. Generated release notes link to the tag's quick start,
+configuration, fields, and operations guide, plus Cloudsmith packages and **Set Me Up**.
+The same notes appear in the GitHub Actions job summary. Rerunning the documentation step
+replaces its raw documentation package, generated GitHub notes, and matching release assets.
+
 Configure these GitHub repository variables:
 
 | Variable | Value |
@@ -126,13 +230,23 @@ environment, and protect that environment with the desired approval rule. The wo
 Cloudsmith's OIDC GitHub Action and does not store a long-lived API key in GitHub. See the
 [Cloudsmith GitHub OIDC setup guide](https://docs.cloudsmith.com/authentication/setup-cloudsmith-to-authenticate-with-oidc-in-github-actions).
 
+The service account needs permission to push DEB, RPM and raw documentation packages to
+this repository. GitHub's built-in token needs `contents: write` in the publishing job
+to manage releases; the workflow grants it only there. Allow release creation in your
+repository/organization policies. No Cloudsmith repository settings are changed: its
+visibility, description, signing keys and consumer access remain administrator-managed.
+
+Validate the mocked publishing flow locally with `bash tests/release_docs_test.sh`.
+Actual uploads and release creation require a tagged GitHub run with the variables,
+OIDC trust, and token permissions above; local tests do not publish anything.
+
 ## Logging
 
 The hook logs through Kea's logging framework with the logger name `ip-audit-hooks`
 (so it is covered by the `kea-dhcp4` or `kea-dhcp6` logger configuration). Messages:
 
 | Message | Meaning |
-|---------|---------|
+| --------- | --------- |
 | `IP_AUDIT_LOAD_OK` | Library loaded; shows the number of sinks. |
 | `IP_AUDIT_LOAD_FAILED` | Invalid configuration or a sink could not be created. Kea will not load the library. |
 | `IP_AUDIT_SINK_CREATED` | A sink was created. |

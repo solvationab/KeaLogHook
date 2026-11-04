@@ -95,6 +95,13 @@ the end.
 20. **Lookup CLI.** [x] `ip-audit-lookup <ip> <timestamp> <log>` reconstructs lease intervals
     from JSON logs and numbered/compressed rotations. See
     [operations.md](operations.md#looking-up-lease-history).
+21. **Current-allocation CLI.** [x] `ip-audit-list <logs>` reports unexpired allocations
+    inferred from audit logs with complete record data. See
+    [operations.md](operations.md#listing-current-allocations).
+22. **Release installation documentation.** [x] Packages link to GitHub documentation;
+    release deployment publishes versioned documentation to Cloudsmith and GitHub with
+    installation notes and checksums. See
+    [operations.md](operations.md#publishing-releases-to-cloudsmith).
 
 ## Suggested order
 
