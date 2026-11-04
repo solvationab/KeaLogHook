@@ -24,6 +24,8 @@ output="$work/packages/release-docs/v1.2.3"
 test -f "$output/kea-ip-audit-hook_1.2.3_amd64_noble.deb"
 test -f "$output/kea-ip-audit-hook_1.2.3_amd64_resolute.deb"
 tar -tzf "$output/kea-ip-audit-docs-1.2.3.tar.gz" | grep -Fx docs/operations.md
+tar -tzf "$output/kea-ip-audit-docs-1.2.3.tar.gz" | grep -Fx man/man1/ip-audit-lookup.1
+tar -tzf "$output/kea-ip-audit-docs-1.2.3.tar.gz" | grep -Fx man/man1/ip-audit-list.1
 grep -Fq 'https://github.com/example/kea/blob/v1.2.3/README.md#quick-start' "$output/release-notes.md"
 grep -Fq 'https://cloudsmith.io/~example/repos/kea/setup/' "$output/release-notes.md"
 grep -Fxq -- '--verify-tag' "$work/gh"

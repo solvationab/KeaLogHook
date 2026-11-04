@@ -52,7 +52,7 @@ printf '%s\n' \
     'Both ip-audit-lookup and ip-audit-list are included. The docs archive contains the README, operations/configuration/field references, and examples for this version.' \
     > "$notes"
 archive="$output_dir/kea-ip-audit-docs-$version.tar.gz"
-tar -czf "$archive" -C "$repo_root" README.md docs examples
+tar -czf "$archive" -C "$repo_root" README.md docs examples man
 assets+=("$archive")
 (
     cd "$output_dir"

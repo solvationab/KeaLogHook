@@ -35,7 +35,7 @@ sudo dnf install kea-ip-audit-hook          # EL9
 You can inspect package metadata before installation with `apt show kea-ip-audit-hook`
 or `dnf info kea-ip-audit-hook`. Homepage/URL and description fields link back to GitHub
 and the getting-started documentation. The Cloudsmith package named `kea-ip-audit-docs`
-contains the README, docs and examples for a specific release.
+contains the README, docs, examples, and man pages for a specific release.
 
 ### Install a downloaded package
 
@@ -176,7 +176,7 @@ cpack -G RPM    # kea-ip-audit-hook-1.2.3-1.x86_64.rpm
 ```
 
 The package installs both libraries into Kea's hooks directory, both CLI commands into
-`<prefix>/bin`, and the README, docs and
+`<prefix>/bin`, their man pages under `<prefix>/<mandir>/man1`, and the README, docs and
 example configurations under `<prefix>/share/doc`. Dependencies on runtime libraries (Kea,
 libzmq and libpq) are detected automatically from the built binary (`dpkg-shlibdeps` is required for
 DEB; `rpmbuild` for RPM). The package does not modify Kea configuration; add the appropriate

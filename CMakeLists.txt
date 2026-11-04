@@ -88,6 +88,8 @@ endif()
 install(TARGETS dhcp_ip_audit dhcp6_ip_audit LIBRARY DESTINATION ${KEA_HOOKS_DIR})
 install(PROGRAMS scripts/ip_audit_lookup.py DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME ip-audit-lookup)
 install(PROGRAMS scripts/ip_audit_lookup.py DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME ip-audit-list)
+install(FILES man/man1/ip-audit-lookup.1 man/man1/ip-audit-list.1
+    DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
 install(FILES examples/kea-dhcp4.conf examples/kea-dhcp6.conf
           examples/sink-file.json examples/sink-postgres.json examples/sink-zeromq.json
       DESTINATION ${CMAKE_INSTALL_DOCDIR}/examples)

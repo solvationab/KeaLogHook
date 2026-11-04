@@ -1,0 +1,54 @@
+.TH IP-AUDIT-LOOKUP 1 "November 2026" "Kea IP Audit Hook" "User Commands"
+.SH NAME
+ip-audit-lookup \- show the lease history for an IP address at a given time
+.SH SYNOPSIS
+.B ip-audit-lookup
+.I IP TIMESTAMP LOGS
+[
+.I LOGS
+...]
+.SH DESCRIPTION
+.B ip-audit-lookup
+reconstructs lease intervals from Kea IP audit JSON records and reports the lease
+matching an IPv4 or IPv6 address at the requested time, followed by its event timeline.
+It reads plain JSON Lines files and gzip-compressed files.
+.PP
+A log base path includes that file and its numbered rotations, including gzip-compressed
+rotations (for example,
+.BR ip-audit.log.1.gz ).
+You may instead supply explicit files or a quoted shell glob pattern. Multiple log
+specifications may be supplied.
+.SH ARGUMENTS
+.TP
+.I IP
+IPv4 or IPv6 address to look up.
+.TP
+.I TIMESTAMP
+Query time in ISO 8601 format with a timezone, for example
+.BR 2026-11-04T12:00:00Z .
+.TP
+.I LOGS
+One or more log files, base log paths, or quoted glob patterns.
+.SH OUTPUT
+Prints the matching lease interval, if any, and a timeline of matching audit events
+with source file and line numbers. Intervals include their start time and exclude their
+end time. A delegated IPv6 prefix matches addresses contained in that prefix.
+.SH EXIT STATUS
+.TP
+.B 0
+A lease matches the address at the requested time.
+.TP
+.B 1
+No lease matches the address at the requested time.
+.TP
+.B 2
+Invalid input or an unreadable or malformed log.
+.SH LIMITATIONS
+Results are inferred from the available audit logs, not queried from Kea's live lease
+database. Missing, filtered, dropped, or not-yet-written events can make the timeline
+incomplete. Log records should retain the timestamp, event, IP address, lease expiry,
+and client identity fields. Full logs are loaded into memory.
+.SH SEE ALSO
+.BR ip-audit-list (1)
+.SH AUTHOR
+Kea IP Audit Hook contributors.

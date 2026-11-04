@@ -1,0 +1,64 @@
+.TH IP-AUDIT-LIST 1 "November 2026" "Kea IP Audit Hook" "User Commands"
+.SH NAME
+ip-audit-list \- list unexpired allocations inferred from Kea audit logs
+.SH SYNOPSIS
+.B ip-audit-list
+[
+.B --at
+.I TIMESTAMP
+]
+.I LOGS
+[
+.I LOGS
+...]
+.SH DESCRIPTION
+.B ip-audit-list
+reconstructs allocations from Kea IP audit JSON records and writes a JSON snapshot
+of allocations that have not expired at the selected time. It reads plain JSON Lines
+files and gzip-compressed files.
+.PP
+A log base path includes that file and its numbered rotations, including gzip-compressed
+rotations (for example,
+.BR ip-audit.log.1.gz ).
+You may instead supply explicit files or a quoted shell glob pattern. Multiple log
+specifications may be supplied. Events after the snapshot time are ignored.
+.SH OPTIONS
+.TP
+.BI --at " TIMESTAMP"
+Select the snapshot time using an ISO 8601 timestamp that includes a timezone. The
+default is the current time in UTC.
+.TP
+.B -h, --help
+Show the help message and exit.
+.SH ARGUMENTS
+.TP
+.I LOGS
+One or more log files, base log paths, or quoted glob patterns. A base path includes
+that file and its numbered or gzip-compressed rotations.
+.SH OUTPUT
+Writes a JSON object to standard output with the snapshot time, source, allocation count,
+and leases. Each lease contains its network, start and end times, and latest audit record.
+Allocations with unknown expiry are omitted with a warning on standard error.
+.SH EXIT STATUS
+.TP
+.B 0
+The snapshot was produced, including when it contains no allocations.
+.TP
+.B 2
+Invalid input or an unreadable or malformed log.
+.SH LIMITATIONS
+This is an inferred snapshot from available audit logs, not a query to Kea's live lease
+database. Missing, filtered, dropped, or not-yet-written events can make it incomplete
+or stale. Retain all events and the timestamp, event, IP address, lease expiry, and client
+identity fields. Logs describing independent allocation domains with overlapping
+addresses should be queried separately. Full logs are loaded into memory.
+.SH EXAMPLES
+.EX
+ip-audit-list /var/log/kea/ip-audit.log /var/log/kea/ip-audit6.log
+ip-audit-list /var/log/kea/ip-audit.log --at 2026-11-04T12:00:00Z
+ip-audit-list /var/log/kea/ip-audit.log > allocations.json
+.EE
+.SH SEE ALSO
+.BR ip-audit-lookup (1)
+.SH AUTHOR
+Kea IP Audit Hook contributors.
