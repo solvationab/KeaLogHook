@@ -1,0 +1,4 @@
+/var/log/kea/ip-audit.log rw,
+/var/log/kea/ip-audit.log.* rw,
+/var/log/kea/ip-audit6.log rw,
+/var/log/kea/ip-audit6.log.* rw,

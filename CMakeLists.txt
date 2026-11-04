@@ -92,6 +92,11 @@ install(FILES examples/kea-dhcp4.conf examples/kea-dhcp6.conf
       DESTINATION ${CMAKE_INSTALL_DOCDIR}/examples)
 install(FILES README.md DESTINATION ${CMAKE_INSTALL_DOCDIR})
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DOCDIR}/docs)
+install(PROGRAMS packaging/security-policy DESTINATION ${CMAKE_INSTALL_LIBEXECDIR}/kea-ip-audit)
+install(FILES packaging/kea-ip-audit.apparmor
+    DESTINATION /etc/apparmor.d/abstractions RENAME kea-ip-audit)
+configure_file(packaging/postinst.in packaging/postinst @ONLY)
+configure_file(packaging/prerm.in packaging/prerm @ONLY)
 
 # Packaging: run `cpack -G DEB` or `cpack -G RPM` in the build directory.
 set(PACKAGE_MAINTAINER "Unknown <root@localhost>" CACHE STRING "Maintainer shown in the package")
@@ -107,10 +112,17 @@ set(CPACK_GENERATOR "DEB;RPM")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
 set(CPACK_DEBIAN_PACKAGE_SECTION "net")
+set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA
+    "${CMAKE_CURRENT_BINARY_DIR}/packaging/postinst;${CMAKE_CURRENT_BINARY_DIR}/packaging/prerm")
+set(CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION TRUE)
 set(CPACK_RPM_PACKAGE_AUTOREQ ON)
 set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
 set(CPACK_RPM_PACKAGE_LICENSE "Proprietary")
 set(CPACK_RPM_PACKAGE_GROUP "System Environment/Daemons")
+set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_CURRENT_BINARY_DIR}/packaging/postinst")
+set(CPACK_RPM_PRE_UNINSTALL_SCRIPT_FILE "${CMAKE_CURRENT_BINARY_DIR}/packaging/prerm")
 # Files under the Kea-owned hooks directory must not be claimed as owned by this package.
-set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION "${CMAKE_INSTALL_PREFIX}/${KEA_HOOKS_DIR}")
+set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
+    "${CMAKE_INSTALL_PREFIX}/${KEA_HOOKS_DIR}"
+    "/etc/apparmor.d" "/etc/apparmor.d/abstractions")
 include(CPack)

@@ -166,6 +166,37 @@ the file sink opens the new path. This command requires Kea's control socket; se
 [configuration.md](configuration.md#control-channel-commands). `ip-audit-stats` reports queue
 depth, dropped records, sink write successes and failures.
 
+## Package security policy
+
+DEB and RPM packages install an AppArmor snippet permitting reads and writes to
+`/var/log/kea/ip-audit.log`, `/var/log/kea/ip-audit6.log`, and their dot-suffixed
+rotations (including compressed files). No other log paths are granted access.
+Installation and upgrades add an optional include to the existing Kea DHCPv4/v6
+local overrides and reload the corresponding profiles when AppArmor is enabled.
+Removal deletes only that include and reloads the profiles; existing administrator
+rules and audit logs are retained. Packages never restart DHCP services.
+
+Supported profile filenames are `kea-dhcp4`, `kea-dhcp6`, `usr.sbin.kea-dhcp4`, and
+`usr.sbin.kea-dhcp6` under `/etc/apparmor.d`. Each must include its matching
+`local/<profile-filename>` override. Missing profiles are skipped; unsupported
+includes produce a warning. If Kea or AppArmor is installed later, reinstall the
+hook package to activate the integration. If `apparmor_parser` is unavailable,
+reload the affected profiles manually after installing it.
+
+Custom log paths require administrator-managed AppArmor rules. Ordinary file
+permissions still apply: the Kea service user needs directory traversal and write
+access to create and rotate logs. Packages do not change log ownership or modes.
+
+EL9 normally uses SELinux rather than AppArmor. The RPM's AppArmor integration is
+inactive when no supported profiles exist. No additional SELinux permissions or
+file-context overrides are installed: SELinux-enforcing log creation and rotation
+have not been certified. Check AVC denials and the distribution's Kea policy before
+adding site-specific persistent contexts or policy. Do not disable enforcement.
+
+Plain `cmake --install` installs the snippet and helper but does not execute package
+lifecycle scripts. Run `<libexecdir>/kea-ip-audit/security-policy configure` as root
+to activate it, and `security-policy remove` before manually uninstalling it.
+
 ## Looking up lease history
 
 The installed `ip-audit-lookup` command reads JSON audit records and reconstructs lease

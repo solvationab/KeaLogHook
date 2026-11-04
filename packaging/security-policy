@@ -1,0 +1,43 @@
+#!/bin/sh
+set -eu
+
+action=${1:?configure or remove required}
+case "$action" in
+    configure|remove) ;;
+    *) exit 2 ;;
+esac
+root=${IP_AUDIT_POLICY_ROOT:-}
+include='#include if exists <abstractions/kea-ip-audit>'
+for name in kea-dhcp4 kea-dhcp6 usr.sbin.kea-dhcp4 usr.sbin.kea-dhcp6; do
+    profile="$root/etc/apparmor.d/$name"
+    local="$root/etc/apparmor.d/local/$name"
+    if [ "$action" = configure ]; then
+        [ -f "$profile" ] || continue
+        if ! grep -E '^[[:space:]]*#?include[[:space:]]' "$profile" |
+            grep -Fq "local/$name"; then
+            echo "kea-ip-audit: $profile has no supported local include; configure AppArmor manually" >&2
+            continue
+        fi
+    fi
+    changed=false
+    if [ "$action" = configure ]; then
+        mkdir -p "$(dirname "$local")"
+        if [ ! -f "$local" ] || ! grep -Fxq "$include" "$local"; then
+            printf '\n%s\n' "$include" >> "$local"
+            changed=true
+        fi
+    elif [ -f "$local" ] && grep -Fxq "$include" "$local"; then
+        sed -i '\|^#include if exists <abstractions/kea-ip-audit>$|d' "$local"
+        changed=true
+    fi
+    if [ -f "$profile" ] && { [ "$action" = configure ] || [ "$changed" = true ]; }; then
+        if [ -f "$root/sys/module/apparmor/parameters/enabled" ] &&
+            grep -q '^Y' "$root/sys/module/apparmor/parameters/enabled"; then
+            if command -v apparmor_parser >/dev/null 2>&1; then
+                apparmor_parser -r -T "$profile"
+            else
+                echo 'kea-ip-audit: apparmor_parser unavailable; reload Kea AppArmor profiles manually' >&2
+            fi
+        fi
+    fi
+done

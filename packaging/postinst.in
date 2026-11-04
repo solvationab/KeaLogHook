@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+case "${1:-}" in
+    configure|1|2) "@CMAKE_INSTALL_FULL_LIBEXECDIR@/kea-ip-audit/security-policy" configure ;;
+esac

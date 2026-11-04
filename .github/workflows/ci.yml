@@ -43,7 +43,7 @@ jobs:
             build-essential cmake pkg-config \
             libssl-dev zlib1g-dev libpq-dev \
             kea-dev libzmq3-dev libboost-dev libgtest-dev \
-            kea-dhcp4-server iproute2 python3
+            kea-dhcp4-server iproute2 python3 apparmor
           # The package starts a Kea instance on its default configuration; the integration test runs its own.
           sudo systemctl stop kea-dhcp4-server || true
 
@@ -75,6 +75,9 @@ jobs:
       - name: Lookup CLI tests
         run: python3 tests/test_lookup.py
 
+      - name: Package policy lifecycle tests
+        run: sh tests/package_policy_test.sh
+
       - name: Build DEB package
         run: |
           cpack --config build/CPackConfig.cmake -G DEB -B build/packages
@@ -85,8 +88,16 @@ jobs:
           path: build/packages/*.deb
           if-no-files-found: error
 
-      - name: Install the hook
-        run: sudo cmake --install build
+      - name: Install, upgrade and remove the DEB package
+        run: |
+          sudo dpkg -i build/packages/*.deb
+          sudo dpkg -i build/packages/*.deb
+          sudo dpkg -r kea-ip-audit-hook
+          if sudo grep -R -F 'abstractions/kea-ip-audit' /etc/apparmor.d/local/; then
+            echo "Package removal left an AppArmor include behind" >&2
+            exit 1
+          fi
+          sudo dpkg -i build/packages/*.deb
 
       - name: Integration test (real Kea with a simulated relay)
         run: sudo bash tests/integration/run.sh

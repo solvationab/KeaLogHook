@@ -17,7 +17,10 @@ cmake -S /src -B "$build_dir" -DCMAKE_BUILD_TYPE=Release -DKEA_PREFIX=/usr \
 cmake --build "$build_dir" --parallel
 cpack --config "$build_dir/CPackConfig.cmake" -G RPM -B "$build_dir/packages"
 
+sh /src/tests/package_policy_test.sh
 dnf -y install "$build_dir"/packages/*.rpm
+test -x /usr/libexec/kea-ip-audit/security-policy
+test -f /etc/apparmor.d/abstractions/kea-ip-audit
 if ldd /usr/lib64/kea/hooks/libdhcp_ip_audit.so | grep -q "not found"; then
     echo "EL9 hook package has unresolved shared libraries" >&2
     exit 1
