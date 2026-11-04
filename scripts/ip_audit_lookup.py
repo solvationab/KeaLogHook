@@ -11,7 +11,7 @@ import os
 import re
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 
 OPEN_EVENTS = {"lease-assign", "lease-renew"}
@@ -461,6 +461,121 @@ def check_main(argv=None):
     return 1 if errors else 0
 
 
+def report_main(argv=None):
+    parser = argparse.ArgumentParser(
+        prog="ip-audit-report",
+        description="Report aggregate event counts by time, POP, site, and address family.")
+    parser.add_argument("logs", nargs="+", help="log file, base log path, or quoted glob pattern")
+    parser.add_argument("--bucket", choices=("hourly", "daily"), default="daily",
+                        help="UTC aggregation interval (default: daily)")
+    parser.add_argument("--from", dest="range_start",
+                        help="inclusive timezone-aware ISO 8601 start")
+    parser.add_argument("--to", dest="range_end",
+                        help="exclusive timezone-aware ISO 8601 end")
+    add_output_format_options(parser)
+    args = parser.parse_args(argv)
+
+    try:
+        if bool(args.range_start) != bool(args.range_end):
+            raise ValueError("--from and --to must be supplied together")
+        range_start = parse_timestamp(args.range_start) if args.range_start else None
+        range_end = parse_timestamp(args.range_end) if args.range_end else None
+        if range_start is not None and range_start >= range_end:
+            raise ValueError("range start must be earlier than range end")
+        paths = expand_log_paths(args.logs)
+    except (OSError, ValueError) as error:
+        print("ip-audit-report: %s" % error, file=sys.stderr)
+        return 2
+
+    counts = {}
+    try:
+        for path in paths:
+            opener = gzip.open if path.endswith(".gz") else open
+            with opener(path, "rt", encoding="utf-8") as source:
+                for line_number, line in enumerate(source, 1):
+                    if not line.strip():
+                        continue
+                    try:
+                        record = json.loads(line)
+                    except json.JSONDecodeError as error:
+                        raise ValueError("%s:%d: invalid JSON: %s" %
+                                         (path, line_number, error)) from error
+                    if not isinstance(record, dict):
+                        raise ValueError("%s:%d: expected a JSON object" % (path, line_number))
+                    try:
+                        timestamp = parse_timestamp(record.get("timestamp"))
+                    except ValueError as error:
+                        raise ValueError("%s:%d: %s" % (path, line_number, error)) from error
+                    if range_start is not None and not range_start <= timestamp < range_end:
+                        continue
+
+                    if args.bucket == "hourly":
+                        bucket_start = timestamp.replace(minute=0, second=0, microsecond=0)
+                        bucket_end = bucket_start + timedelta(hours=1)
+                    else:
+                        bucket_start = timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
+                        bucket_end = bucket_start + timedelta(days=1)
+
+                    def dimension(field):
+                        value = record.get(field)
+                        return value if isinstance(value, str) and value else "(missing)"
+
+                    key = (bucket_start, dimension("pop"), dimension("site"),
+                           dimension("event"), dimension("address-family"))
+                    counts[key] = counts.get(key, 0) + 1
+    except (OSError, EOFError, gzip.BadGzipFile, UnicodeError, ValueError) as error:
+        print("ip-audit-report: %s" % error, file=sys.stderr)
+        return 2
+
+    rows = []
+    for (bucket_start, pop, site, event, family), count in sorted(counts.items()):
+        bucket_end = bucket_start + (timedelta(hours=1) if args.bucket == "hourly"
+                                     else timedelta(days=1))
+        rows.append({
+            "bucket-start": format_time(bucket_start),
+            "bucket-end": format_time(bucket_end),
+            "pop": pop,
+            "site": site,
+            "event": event,
+            "address-family": family,
+            "count": count,
+        })
+
+    total_events = sum(row["count"] for row in rows)
+    result = {
+        "source": "audit-logs",
+        "timezone": "UTC",
+        "bucket": args.bucket,
+        "filters": {
+            "from": format_time(range_start) if range_start else None,
+            "to": format_time(range_end) if range_end else None,
+            "semantics": "[from, to)",
+        },
+        "bucket-count": len(rows),
+        "total-events": total_events,
+        "rows": rows,
+    }
+    if args.output_format == "json":
+        json.dump(result, sys.stdout, indent=2)
+        print()
+    elif args.output_format == "table":
+        write_table(["bucket-start", "bucket-end", "pop", "site", "event",
+                     "address-family", "count"], [
+            [row[field] for field in ("bucket-start", "bucket-end", "pop", "site", "event",
+                                      "address-family", "count")]
+            for row in rows])
+    else:
+        print("Aggregate report: %s UTC buckets" % args.bucket)
+        if range_start is not None:
+            print("Range: [%s, %s)" % (format_time(range_start), format_time(range_end)))
+        print("Buckets: %d; events: %d" % (len(rows), total_events))
+        for row in rows:
+            print("  %s pop=%s site=%s event=%s family=%s count=%d" % (
+                row["bucket-start"], row["pop"], row["site"], row["event"],
+                row["address-family"], row["count"]))
+    return 0
+
+
 def interval_for_event(event, intervals):
     network = record_network(event.record)
     if network is None:
@@ -646,6 +761,8 @@ if __name__ == "__main__":
         command = subscriber_main
     elif command_name == "ip-audit-check":
         command = check_main
+    elif command_name == "ip-audit-report":
+        command = report_main
     else:
         command = main
     sys.exit(command())

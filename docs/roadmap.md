@@ -121,7 +121,7 @@ the end.
     for corrupt records. This gives operators and ingestion pipelines a repeatable check
     before accepting, archiving, or investigating a log set. It cannot prove that events
     were lost unless records gain sequence numbers or another completeness marker.
-25. **Aggregated operations report.** [ ] Add `ip-audit-report` to produce time-bucketed
+25. **Aggregated operations report.** [x] Add `ip-audit-report` to produce time-bucketed
     counts by POP/site, event, and address family. Show a readable report by default, with
     `--json` and `--table` output options for automated ingestion. Keep the default output
     aggregate-only, without client or relay identifiers. This can help ISPs spot lease
@@ -131,7 +131,8 @@ the end.
 ## Suggested order
 
 The PostgreSQL sink (18), IP lookup (20), current-allocation listing (21),
-subscriber-history search (23), and log validation (24) are implemented. The remaining work is best
+subscriber-history search (23), log validation (24), and aggregate reporting (25) are implemented.
+The remaining work is best
 sequenced by risk and operational value:
 
 1. **Bound database growth and define data lifecycle:** retention/partitioning for PostgreSQL
@@ -142,7 +143,7 @@ sequenced by risk and operational value:
 4. **Address compliance controls:** tamper evidence (11), followed by field-level privacy
     controls (12).
 5. **Improve deployment operations:** config dry-run (16) and the sample operations files (17).
-6. **Complete ISP query tooling:** add aggregate reporting (25), reusing the shared log parser
-    while keeping routine reports aggregate-only.
+6. **ISP query tooling is complete:** continue improving validation and aggregate reports as
+    deployment experience clarifies their operational needs.
 7. **Extend integrations based on deployment demand:** ZeroMQ security (13) and additional
     sinks (19).

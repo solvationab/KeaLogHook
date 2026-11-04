@@ -74,9 +74,9 @@ Find installed examples and docs with `dpkg-query -L kea-ip-audit-hook` or
 - **Library not found:** use the absolute path from the package file list. Ubuntu uses
   multiarch paths; EL9 normally uses `/usr/lib64/kea/hooks`.
 - **CLI command not found:** check the package file list for `/usr/bin/ip-audit-lookup`
-  `/usr/bin/ip-audit-list`, `/usr/bin/ip-audit-subscriber`, and `/usr/bin/ip-audit-check`,
-  then check `PATH`. Older packages or installations of only the `.so` files may not contain
-  the commands.
+  `/usr/bin/ip-audit-list`, `/usr/bin/ip-audit-subscriber`, `/usr/bin/ip-audit-check`, and
+  `/usr/bin/ip-audit-report`, then check `PATH`. Older packages or installations of only the
+  `.so` files may not contain the commands.
 - **No records yet:** the hook records new lease events, not a startup dump of all
   existing leases. Check sink event/field filters and wait for an allocation or renewal.
 - **No CID/RID:** option 82 must actually be supplied by a DHCPv4 relay. Binary IDs
@@ -176,7 +176,7 @@ cpack -G DEB    # kea-ip-audit-hook_1.2.3_amd64.deb
 cpack -G RPM    # kea-ip-audit-hook-1.2.3-1.x86_64.rpm
 ```
 
-The package installs both libraries into Kea's hooks directory, all four CLI commands into
+The package installs both libraries into Kea's hooks directory, all five CLI commands into
 `<prefix>/bin`, their man pages under `<prefix>/<mandir>/man1`, and the README, docs and
 example configurations under `<prefix>/share/doc`. Dependencies on runtime libraries (Kea,
 libzmq and libpq) are detected automatically from the built binary (`dpkg-shlibdeps` is required for
@@ -393,8 +393,8 @@ Missing, filtered, dropped, or not-yet-written events can make the snapshot inco
 stale. Use JSON logs with all events and `lease-expires` plus client identity fields retained.
 Input must describe a single allocation domain; independent servers or networks with
 overlapping addresses should be queried separately. Full logs are loaded into memory.
-Both release packages install `/usr/bin/ip-audit-lookup`, `/usr/bin/ip-audit-list`, and
-`/usr/bin/ip-audit-subscriber`, plus `/usr/bin/ip-audit-check`.
+Both release packages install `/usr/bin/ip-audit-lookup`, `/usr/bin/ip-audit-list`,
+`/usr/bin/ip-audit-subscriber`, `/usr/bin/ip-audit-check`, and `/usr/bin/ip-audit-report`.
 
 ## Searching subscriber history
 
@@ -460,6 +460,29 @@ The scanner continues after record-level errors and reports up to 100 diagnostic
 per-file and total error/warning counts include any additional omitted details. It checks the
 available records only and cannot prove that events were lost without sequence numbers or
 another completeness marker.
+
+## Reporting aggregate activity
+
+`ip-audit-report` groups valid event records by UTC time bucket, POP, site, event, and address
+family. The default bucket is daily; `--bucket hourly` selects hour-sized buckets. Optional
+`--from` and `--to` filters must be supplied together, include a timezone, and select the
+half-open interval `[from, to)`. Without filters, all supplied log records are included.
+
+```sh
+ip-audit-report /var/log/kea/ip-audit.log /var/log/kea/ip-audit6.log
+ip-audit-report --bucket hourly --from 2026-11-01T00:00:00Z \
+  --to 2026-11-02T00:00:00Z --json /var/log/kea/ip-audit.log > activity.json
+ip-audit-report --table /var/log/kea/ip-audit.log
+```
+
+Readable text is the default. JSON provides bucket metadata, filters, totals, and aggregate
+rows; TSV columns are `bucket-start`, `bucket-end`, `pop`, `site`, `event`, `address-family`,
+and `count`. Missing POP, site, event, or family values are grouped as `(missing)`. Output
+contains no IP, hardware address, client ID, DUID, or relay identifier. Invalid JSON, invalid
+timestamps, and unreadable files abort the report with status `2`; valid input with no matching
+records returns an empty report and status `0`. The command streams input and retains only
+aggregate groups in memory. Treat POP and site labels as operational data and restrict access
+to report output according to local policy.
 
 ## Privacy and security
 

@@ -1,0 +1,86 @@
+.TH IP-AUDIT-REPORT 1 "November 2026" "Kea IP Audit Hook" "User Commands"
+.SH NAME
+ip-audit-report \- report aggregate DHCP audit activity
+.SH SYNOPSIS
+.B ip-audit-report
+[
+.B --bucket
+.I hourly|daily
+]
+[
+.B --from
+.I TIMESTAMP
+.B --to
+.I TIMESTAMP
+]
+.I LOGS
+[
+.I LOGS
+...]
+[
+.B --json
+|
+.B --table
+]
+.SH DESCRIPTION
+.B ip-audit-report
+groups valid event records by UTC time bucket, POP, site, event, and address family. The
+default bucket is daily; hourly buckets are available. An optional half-open time range
+filters events before aggregation.
+.PP
+A base log path includes that file and numbered rotations, including gzip rotations.
+Explicit files and quoted shell glob patterns are also accepted. Input is streamed; only
+aggregate groups are retained in memory.
+.SH OPTIONS
+.TP
+.BI --bucket " hourly|daily"
+Select UTC bucket size. The default is daily.
+.TP
+.BI --from " TIMESTAMP"
+Inclusive timezone-aware ISO 8601 start. Must be used with
+.BR --to .
+.TP
+.BI --to " TIMESTAMP"
+Exclusive timezone-aware ISO 8601 end, later than
+.BR --from .
+.TP
+.B -h, --help
+Show the help message and exit.
+.TP
+.B --json
+Write bucket metadata, filters, totals, and aggregate rows as JSON.
+.TP
+.B --table
+Write tab-separated aggregate rows with a header.
+.SH ARGUMENTS
+.TP
+.I LOGS
+One or more log files, base log paths, or quoted glob patterns. A base path includes that
+file and its numbered or gzip-compressed rotations.
+.SH OUTPUT
+Readable text is the default. Aggregate columns are bucket start/end, POP, site, event,
+address family, and count. Missing dimensions are grouped as (missing). Output deliberately
+omits IP addresses, client identifiers, hardware addresses, DUIDs, and relay identifiers.
+.SH EXIT STATUS
+.TP
+.B 0
+The report was produced, including when there are no matching records.
+.TP
+.B 2
+Invalid arguments, malformed input, invalid timestamps, or unreadable logs.
+.SH PRIVACY AND LIMITATIONS
+The report contains aggregate counts only, but POP and site labels may still be sensitive
+operational data. Protect output according to local policy. Aggregates describe available log
+records and cannot prove completeness if events were dropped, filtered, or never written.
+.SH EXAMPLES
+.EX
+ip-audit-report /var/log/kea/ip-audit.log /var/log/kea/ip-audit6.log
+ip-audit-report --bucket hourly --from 2026-11-01T00:00:00Z \\
+  --to 2026-11-02T00:00:00Z --json /var/log/kea/ip-audit.log
+ip-audit-report --table /var/log/kea/ip-audit.log
+.EE
+.SH SEE ALSO
+.BR ip-audit-check (1),
+.BR ip-audit-lookup (1)
+.SH AUTHOR
+Kea IP Audit Hook contributors.

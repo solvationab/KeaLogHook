@@ -49,7 +49,7 @@ printf '%s\n' \
     '```' '' \
     'Alternatively, download one matching package asset and install with apt install ./<file>.deb or dnf install ./<file>.rpm. Verify downloads against SHA256SUMS; these are integrity checks, not signatures.' '' \
     'Packages do not enable the hook or restart DHCP. Follow the quick start to locate the library, configure Kea, check log access, and verify IP_AUDIT_LOAD_OK.' '' \
-    'ip-audit-lookup, ip-audit-list, ip-audit-subscriber, and ip-audit-check are included. The docs archive contains the README, operations/configuration/field references, man pages, and examples for this version.' \
+    'ip-audit-lookup, ip-audit-list, ip-audit-subscriber, ip-audit-check, and ip-audit-report are included. The docs archive contains the README, operations/configuration/field references, man pages, and examples for this version.' \
     > "$notes"
 archive="$output_dir/kea-ip-audit-docs-$version.tar.gz"
 tar -czf "$archive" -C "$repo_root" README.md docs examples man

@@ -28,6 +28,7 @@ tar -tzf "$output/kea-ip-audit-docs-1.2.3.tar.gz" | grep -Fx man/man1/ip-audit-l
 tar -tzf "$output/kea-ip-audit-docs-1.2.3.tar.gz" | grep -Fx man/man1/ip-audit-list.1
 tar -tzf "$output/kea-ip-audit-docs-1.2.3.tar.gz" | grep -Fx man/man1/ip-audit-subscriber.1
 tar -tzf "$output/kea-ip-audit-docs-1.2.3.tar.gz" | grep -Fx man/man1/ip-audit-check.1
+tar -tzf "$output/kea-ip-audit-docs-1.2.3.tar.gz" | grep -Fx man/man1/ip-audit-report.1
 grep -Fq 'https://github.com/example/kea/blob/v1.2.3/README.md#quick-start' "$output/release-notes.md"
 grep -Fq 'https://cloudsmith.io/~example/repos/kea/setup/' "$output/release-notes.md"
 grep -Fxq -- '--verify-tag' "$work/gh"
@@ -35,6 +36,7 @@ grep -Fxq -- '--description' "$work/cloudsmith"
 grep -Fq 'ip-audit-list' "$work/summary"
 grep -Fq 'ip-audit-subscriber' "$output/release-notes.md"
 grep -Fq 'ip-audit-check' "$output/release-notes.md"
+grep -Fq 'ip-audit-report' "$output/release-notes.md"
 (cd "$output" && sha256sum -c SHA256SUMS)
 MOCK_GH_VIEW_STATUS=0 bash "$repo_root/scripts/publish-release-docs.sh" "$work/packages"
 grep -Fxq upload "$work/gh"

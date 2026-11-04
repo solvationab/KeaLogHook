@@ -298,6 +298,104 @@ class LookupTests(unittest.TestCase):
             self.assertEqual("2025-01-01T00:00:00.100000Z", summary["first-timestamp"])
             self.assertEqual("2025-01-01T00:00:00.900000Z", summary["last-timestamp"])
 
+    def test_report_groups_by_bucket_pop_site_event_and_family_without_identifiers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory) / "audit.log"
+            rotated = Path(str(base) + ".1.gz")
+            rotated_record = record(
+                "lease-assign", "2025-01-01T00:05:00Z", "192.0.2.10", "client-secret",
+                "2025-01-01T02:00:00Z", **{"pop": "north", "site": "olt-1"})
+            with gzip.open(rotated, "wt", encoding="utf-8") as output:
+                output.write(json.dumps(rotated_record) + "\n")
+            records = [
+                record("lease-assign", "2025-01-01T00:10:00Z", "192.0.2.11", "client-secret",
+                       "2025-01-01T02:00:00Z", **{"pop": "north", "site": "olt-1"}),
+                record("lease-renew", "2025-01-01T00:20:00Z", "192.0.2.11", "client-secret",
+                       "2025-01-01T02:00:00Z", **{"pop": "north", "site": "olt-1"}),
+                record("lease-assign", "2025-01-01T00:30:00Z", "2001:db8::1", "duid-secret",
+                       "2025-01-01T02:00:00Z", **{"pop": "north", "site": "olt-1"}),
+                record("lease-assign", "2025-01-01T01:00:00Z", "192.0.2.12", "client-secret",
+                       "2025-01-01T02:00:00Z", **{"pop": "south", "site": "olt-2"}),
+                record("lease-assign", "2025-01-01T02:00:00Z", "192.0.2.13", "outside",
+                       "2025-01-01T03:00:00Z", **{"pop": "north", "site": "olt-1"}),
+            ]
+            base.write_text("".join(json.dumps(item) + "\n" for item in records),
+                            encoding="utf-8")
+            arguments = ["--bucket", "hourly", "--from", "2025-01-01T00:00:00Z",
+                         "--to", "2025-01-01T02:00:00Z", str(base)]
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                status = ip_audit_lookup.report_main(arguments + ["--json"])
+            result = json.loads(output.getvalue())
+            self.assertEqual(0, status)
+            self.assertEqual(5, result["total-events"])
+            self.assertEqual("[from, to)", result["filters"]["semantics"])
+            grouped = {(row["bucket-start"], row["pop"], row["site"], row["event"],
+                        row["address-family"]): row["count"] for row in result["rows"]}
+            self.assertEqual(2, grouped[("2025-01-01T00:00:00Z", "north", "olt-1",
+                                         "lease-assign", "IPv4")])
+            self.assertEqual(1, grouped[("2025-01-01T00:00:00Z", "north", "olt-1",
+                                         "lease-renew", "IPv4")])
+            self.assertEqual(1, grouped[("2025-01-01T00:00:00Z", "north", "olt-1",
+                                         "lease-assign", "IPv6")])
+            self.assertEqual(1, grouped[("2025-01-01T01:00:00Z", "south", "olt-2",
+                                         "lease-assign", "IPv4")])
+            self.assertNotIn("client-secret", output.getvalue())
+            self.assertNotIn("duid-secret", output.getvalue())
+            self.assertNotIn("ip-address", output.getvalue())
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                status = ip_audit_lookup.report_main(arguments + ["--table"])
+            self.assertEqual(0, status)
+            self.assertIn("bucket-start\tbucket-end\tpop\tsite\tevent\taddress-family\tcount",
+                          output.getvalue())
+
+    def test_report_daily_buckets_and_validates_range_pair(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory) / "audit.log"
+            records = [
+                record("lease-assign", "2025-01-01T23:59:00Z", "192.0.2.1", "secret",
+                       "2025-01-02T00:00:00Z"),
+                record("lease-assign", "2025-01-02T00:01:00Z", "192.0.2.2", "secret",
+                       "2025-01-02T02:00:00Z"),
+            ]
+            base.write_text("".join(json.dumps(item) + "\n" for item in records),
+                            encoding="utf-8")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                status = ip_audit_lookup.report_main([str(base), "--json"])
+            result = json.loads(output.getvalue())
+            self.assertEqual(0, status)
+            self.assertEqual("daily", result["bucket"])
+            self.assertEqual(2, result["bucket-count"])
+            self.assertEqual("2025-01-01T00:00:00Z", result["rows"][0]["bucket-start"])
+            self.assertEqual("2025-01-02T00:00:00Z", result["rows"][1]["bucket-start"])
+
+            errors = io.StringIO()
+            with contextlib.redirect_stderr(errors):
+                status = ip_audit_lookup.report_main([
+                    str(base), "--from", "2025-01-01T00:00:00Z"])
+            self.assertEqual(2, status)
+            self.assertIn("--from and --to must be supplied together", errors.getvalue())
+
+    def test_report_alias_defaults_to_aggregate_text(self):
+        with tempfile.TemporaryDirectory() as directory:
+            command = Path(directory) / "ip-audit-report"
+            shutil.copyfile(ip_audit_lookup.__file__, command)
+            base = Path(directory) / "audit.log"
+            base.write_text(json.dumps(record(
+                "lease-assign", "2025-01-01T12:00:00Z", "192.0.2.10", "client-secret",
+                "2025-01-02T00:00:00Z", **{"pop": "west", "site": "site-3"})) + "\n",
+                encoding="utf-8")
+            result = subprocess.run([sys.executable, str(command), str(base)],
+                                    capture_output=True, text=True, check=False)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("Aggregate report: daily UTC buckets", result.stdout)
+            self.assertIn("pop=west site=site-3", result.stdout)
+            self.assertNotIn("client-secret", result.stdout)
+
     def test_check_rejects_missing_logs_and_caps_diagnostic_details(self):
         errors = io.StringIO()
         with contextlib.redirect_stderr(errors):

@@ -133,6 +133,8 @@ ip-audit-lookup --help
 ip-audit-list --help
 ip-audit-subscriber --help
 ip-audit-check --help
+ip-audit-report --help
+ip-audit-report --help
 sudo ip-audit-list /var/log/kea/ip-audit.log
 ```
 
@@ -159,7 +161,7 @@ To list currently allocated addresses and delegated prefixes in readable form:
 ip-audit-list /var/log/kea/ip-audit.log /var/log/kea/ip-audit6.log
 ```
 
-All four commands default to readable output. Add `--json` for JSON or `--table` for
+All five commands default to readable output. Add `--json` for JSON or `--table` for
 tab-separated columns, for example:
 
 ```sh
@@ -190,6 +192,32 @@ ip-audit-check /var/log/kea/ip-audit.log /var/log/kea/ip-audit6.log --json
 
 See [docs/operations.md](docs/operations.md#validating-audit-logs) for severity rules and
 exit codes.
+
+## Reporting Aggregate Activity
+
+`ip-audit-report` summarizes event counts by UTC time bucket, POP, site, event, and address
+family without including client or relay identifiers:
+
+```sh
+ip-audit-report --bucket daily --from 2026-10-01T00:00:00Z \
+  --to 2026-11-01T00:00:00Z /var/log/kea/ip-audit.log
+```
+
+See [docs/operations.md](docs/operations.md#reporting-aggregate-activity) for bucket sizes,
+filters, and output formats.
+
+## Reporting Aggregate Activity
+
+`ip-audit-report` summarizes event counts by UTC time bucket, POP, site, event, and address
+family without including client or relay identifiers:
+
+```sh
+ip-audit-report --bucket daily --from 2026-10-01T00:00:00Z \
+  --to 2026-11-01T00:00:00Z /var/log/kea/ip-audit.log
+```
+
+See [docs/operations.md](docs/operations.md#reporting-aggregate-activity) for bucket sizes,
+filters, and output formats.
 
 This is inferred from available audit logs, not queried from Kea's live lease database.
 See [docs/operations.md](docs/operations.md#listing-current-allocations) for limitations.
