@@ -102,6 +102,27 @@ the end.
     release deployment publishes versioned documentation to Cloudsmith and GitHub with
     installation notes and checksums. See
     [operations.md](operations.md#publishing-releases-to-cloudsmith).
+23. **Subscriber-history CLI.** [ ] Add `ip-audit-subscriber` to search a time range by
+    `circuit-id`, `remote-id`, `subscriber-id`, hardware address, client ID, or DUID and
+    show the matching lease events across IP addresses. Reuse the lookup tool's log and
+    lease-interval handling, and support JSON output for integration with ticketing and
+    support systems. This fills the ISP workflow missing from IP-at-a-time lookup: tracing
+    a subscriber through address changes and diagnosing relay or access-network issues.
+    Require an explicit identifier type and exact-match semantics; the results contain
+    subscriber data and need access controls equivalent to the audit logs.
+24. **Log validation CLI.** [ ] Add `ip-audit-check` to scan files, rotations, and gzip
+    logs for malformed JSON, invalid timestamps, unsupported schema versions, and
+    missing reconstruction fields, then summarize event counts and time coverage by file.
+    Separate errors from warnings so intentional custom field selections are not mistaken
+    for corrupt records. This gives operators and ingestion pipelines a repeatable check
+    before accepting, archiving, or investigating a log set. It cannot prove that events
+    were lost unless records gain sequence numbers or another completeness marker.
+25. **Aggregated operations report.** [ ] Add `ip-audit-report` to produce time-bucketed
+    counts by POP/site, event, and address family, with formats suitable for terminal
+    review and automated ingestion. Keep the default output aggregate-only, without client
+    or relay identifiers. This can help ISPs spot lease churn, compare service areas, and
+    understand DHCPv4/v6 activity without exposing subscriber-level records in routine
+    reporting.
 
 ## Suggested order
 
@@ -116,5 +137,8 @@ sequenced by risk and operational value:
 4. **Address compliance controls:** tamper evidence (11), followed by field-level privacy
     controls (12).
 5. **Improve deployment operations:** config dry-run (16) and the sample operations files (17).
-6. **Extend integrations based on deployment demand:** ZeroMQ security (13) and additional
+6. **Add ISP query workflows:** implement subscriber history first (23), then log
+    validation (24), followed by aggregate reporting (25). Reuse the existing log parsing
+    and interval reconstruction behavior, and document privacy and completeness limits.
+7. **Extend integrations based on deployment demand:** ZeroMQ security (13) and additional
     sinks (19).
