@@ -12,6 +12,7 @@ dnf -y install cmake gcc-c++ make pkgconf-pkg-config boost-devel \
 
 build_dir="/tmp/kea-ip-audit-build"
 cmake -S /src -B "$build_dir" -DCMAKE_BUILD_TYPE=Release -DKEA_PREFIX=/usr \
+    -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_BINDIR=bin \
     -DCMAKE_INSTALL_LIBDIR=lib64 -DKEA_IP_AUDIT_VERSION="$KEA_IP_AUDIT_VERSION" \
     -DIP_AUDIT_BUILD_TESTS=OFF
 cmake --build "$build_dir" --parallel
@@ -19,6 +20,9 @@ cpack --config "$build_dir/CPackConfig.cmake" -G RPM -B "$build_dir/packages"
 
 sh /src/tests/package_policy_test.sh
 dnf -y install "$build_dir"/packages/*.rpm
+rpm -ql kea-ip-audit-hook | grep -Fx /usr/bin/ip-audit-lookup
+test "$(command -v ip-audit-lookup)" = /usr/bin/ip-audit-lookup
+ip-audit-lookup --help
 test -x /usr/libexec/kea-ip-audit/security-policy
 test -f /etc/apparmor.d/abstractions/kea-ip-audit
 if ldd /usr/lib64/kea/hooks/libdhcp_ip_audit.so | grep -q "not found"; then

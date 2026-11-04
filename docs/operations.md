@@ -199,6 +199,21 @@ to activate it, and `security-policy remove` before manually uninstalling it.
 
 ## Looking up lease history
 
+Release DEB/RPM packages install `/usr/bin/ip-audit-lookup` and require Python 3.7
+or newer. For source installations, the command is installed under the configured
+`CMAKE_INSTALL_PREFIX` and `CMAKE_INSTALL_BINDIR` instead.
+
+If the shell reports `command not found`, check the installed package's file list:
+
+```sh
+dpkg-query -L kea-ip-audit-hook | grep ip-audit-lookup  # Debian/Ubuntu
+rpm -ql kea-ip-audit-hook | grep ip-audit-lookup        # RPM distributions
+```
+
+If no file is listed, upgrade to a package containing the CLI. If the file is listed
+and exists, try its absolute path and check that its directory is on `PATH`.
+Installing only the hook `.so` files does not install the lookup command.
+
 The installed `ip-audit-lookup` command reads JSON audit records and reconstructs lease
 intervals from assignment, renewal and lease-ending events. Pass a base log path to include
 that file plus sibling rotations (for example `ip-audit.log.1` and `ip-audit.log.1.gz`), or

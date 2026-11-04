@@ -62,7 +62,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DKEA_PREFIX=/usr -DKEA_IP_AUDIT_VERSION=${{ steps.package_version.outputs.version }}
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DKEA_PREFIX=/usr -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_BINDIR=bin -DKEA_IP_AUDIT_VERSION=${{ steps.package_version.outputs.version }}
 
       - name: Build
         run: cmake --build build --parallel
@@ -98,6 +98,12 @@ jobs:
             exit 1
           fi
           sudo dpkg -i build/packages/*.deb
+
+      - name: Verify installed lookup command
+        run: |
+          dpkg-query -L kea-ip-audit-hook | grep -Fx /usr/bin/ip-audit-lookup
+          test "$(command -v ip-audit-lookup)" = /usr/bin/ip-audit-lookup
+          ip-audit-lookup --help
 
       - name: Integration test (real Kea with a simulated relay)
         run: sudo bash tests/integration/run.sh
