@@ -143,6 +143,14 @@ The hook logs through Kea's logging framework with the logger name `ip-audit-hoo
 
 ## Consuming ZeroMQ records
 
+Circuit and remote identifiers retain their original hex fields and also have
+`circuit-id-text` and `remote-id-text` representations. Printable ASCII is retained;
+other bytes become lowercase `\xNN` escapes, and literal backslashes are doubled.
+For example, bytes `00 70 6f 72 74` become `\x00port`. JSON additionally escapes
+backslashes, so this appears as `"circuit-id-text":"\\x00port"` in a JSON record.
+This applies to file, ZeroMQ, and PostgreSQL JSON output. Custom field lists and
+templates must include the text fields explicitly. Missing or empty IDs remain empty.
+
 A minimal Python subscriber for the default multipart configuration:
 
 ```python

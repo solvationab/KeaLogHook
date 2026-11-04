@@ -49,9 +49,9 @@ properties.
 | `giaddr` | string | Relay agent address from the packet header. |
 | `relay-address` | string | Packet source address; for relayed DHCPv6, the outer relay's peer address. |
 | `circuit-id` | string | Option 82 sub-option 1 (Agent Circuit ID) as lowercase hex without separators. |
-| `circuit-id-text` | string | Same value as text, only if every byte is printable ASCII; otherwise empty. |
+| `circuit-id-text` | string | ASCII form of `circuit-id`: nonprintable bytes use lowercase `\xNN` escapes; literal backslashes are doubled. |
 | `remote-id` | string | DHCPv4 option 82 sub-option 2 or DHCPv6 relay option 37, hex. |
-| `remote-id-text` | string | Printable-ASCII form of `remote-id`, or empty. |
+| `remote-id-text` | string | ASCII form of `remote-id`, with the same escaping as `circuit-id-text`, including DHCPv6 enterprise-number bytes. |
 | `subscriber-id` | string | DHCPv4 option 82 sub-option 6 or DHCPv6 relay option 38, hex. |
 | `subscriber-id-text` | string | Printable-ASCII form of `subscriber-id`, or empty. |
 | `link-selection` | string | Option 82 sub-option 5 as a dotted IPv4 address. |

@@ -63,6 +63,23 @@ std::string printableOrEmpty(const std::vector<uint8_t>& data) {
     return std::string(data.begin(), data.end());
 }
 
+std::string escapedAscii(const std::vector<uint8_t>& data) {
+    static const char digits[] = "0123456789abcdef";
+    std::string out;
+    for (uint8_t byte : data) {
+        if (byte == '\\') {
+            out += "\\\\";
+        } else if (byte >= 0x20 && byte <= 0x7e) {
+            out += static_cast<char>(byte);
+        } else {
+            out += "\\x";
+            out += digits[byte >> 4];
+            out += digits[byte & 0x0f];
+        }
+    }
+    return out;
+}
+
 ConstElementPtr subnetContext4(SubnetID subnetId) {
     const auto config = CfgMgr::instance().getCurrentCfg();
     if (!config) {
@@ -208,9 +225,9 @@ AuditRecord buildRecord(const std::string& event, const Pkt4Ptr& query, const Le
     r.set("giaddr", giaddr);
     r.set("relay-address", relayAddress);
     r.set("circuit-id", toHex(circuit));
-    r.set("circuit-id-text", printableOrEmpty(circuit));
+    r.set("circuit-id-text", escapedAscii(circuit));
     r.set("remote-id", toHex(remote));
-    r.set("remote-id-text", printableOrEmpty(remote));
+    r.set("remote-id-text", escapedAscii(remote));
     r.set("subscriber-id", toHex(subscriber));
     r.set("subscriber-id-text", printableOrEmpty(subscriber));
     r.set("link-selection", linkSelection);
@@ -301,7 +318,7 @@ AuditRecord buildRecord(const std::string& event, const Pkt6Ptr& query, const Le
                     if (option) {
                         auto data = option->toBinary();
                         remoteId = toHex(data);
-                        remoteIdText = printableOrEmpty(data);
+                        remoteIdText = escapedAscii(data);
                     }
                 }
                 if (subscriberId.empty()) {

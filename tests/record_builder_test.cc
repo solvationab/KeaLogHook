@@ -1,6 +1,7 @@
 #include "record_builder.h"
 
 #include "audit_record.h"
+#include "formatter.h"
 
 #include <asiolink/io_address.h>
 #include <dhcp/dhcp4.h>
@@ -141,7 +142,7 @@ TEST(RecordBuilder, RelayAgentInformation) {
     AuditRecord r = buildRecord("lease-assign", makeQuery(makeRelayAgentInfo()), makeLease());
 
     EXPECT_EQ("0004000a", value(r, "circuit-id"));
-    EXPECT_EQ("", value(r, "circuit-id-text"));
+    EXPECT_EQ(R"(\x00\x04\x00\x0a)", value(r, "circuit-id-text"));
     EXPECT_EQ("61623132", value(r, "remote-id"));
     EXPECT_EQ("ab12", value(r, "remote-id-text"));
     EXPECT_EQ("73756231", value(r, "subscriber-id"));
@@ -151,6 +152,45 @@ TEST(RecordBuilder, RelayAgentInformation) {
               value(r, "relay-suboptions"));
     EXPECT_EQ("01", value(r, "relay-flags"));
     EXPECT_EQ("00000123aabb", value(r, "relay-vendor-specific"));
+}
+
+TEST(RecordBuilder, RelayIdentifierTextEscapesBinaryBytes) {
+    OptionPtr rai(new Option(Option::V4, DHO_DHCP_AGENT_OPTIONS));
+    rai->addOption(subOption(1, {0x00, 'p', 'o', 'r', 't', 0x09, 0x0a, 0x0d, 0x1f,
+                                 0x20, 0x7e, 0x7f, 0x80, 0xff}));
+    rai->addOption(subOption(2, {'r', 0x00, '1', 0xff}));
+    AuditRecord record = buildRecord("lease-assign", makeQuery(rai), makeLease());
+
+    EXPECT_EQ("00706f7274090a0d1f207e7f80ff", value(record, "circuit-id"));
+    EXPECT_EQ(R"(\x00port\x09\x0a\x0d\x1f ~\x7f\x80\xff)", value(record, "circuit-id-text"));
+    EXPECT_EQ("720031ff", value(record, "remote-id"));
+    EXPECT_EQ(R"(r\x001\xff)", value(record, "remote-id-text"));
+
+    auto formatter = createFormatter(isc::data::ConstElementPtr());
+    const std::string json = formatter->format(record);
+    EXPECT_NE(std::string::npos, json.find(R"("remote-id-text":"r\\x001\\xff")"));
+    EXPECT_EQ(std::string::npos, json.find('\n'));
+}
+
+TEST(RecordBuilder, RelayIdentifierTextPreservesAsciiAndEscapesBackslashes) {
+    OptionPtr rai(new Option(Option::V4, DHO_DHCP_AGENT_OPTIONS));
+    rai->addOption(subOption(1, {'p', 'o', 'r', 't', '-', '1'}));
+    rai->addOption(subOption(2, {'\\', 'x', '0', '0', '"'}));
+    AuditRecord record = buildRecord("lease-assign", makeQuery(rai), makeLease());
+
+    EXPECT_EQ("port-1", value(record, "circuit-id-text"));
+    EXPECT_EQ(R"(\\x00")", value(record, "remote-id-text"));
+    EXPECT_EQ("5c78303022", value(record, "remote-id"));
+}
+
+TEST(RecordBuilder, EmptyRelayIdentifiersHaveEmptyText) {
+    OptionPtr rai(new Option(Option::V4, DHO_DHCP_AGENT_OPTIONS));
+    rai->addOption(subOption(1, {}));
+    rai->addOption(subOption(2, {}));
+    AuditRecord record = buildRecord("lease-assign", makeQuery(rai), makeLease());
+
+    EXPECT_EQ("", value(record, "circuit-id-text"));
+    EXPECT_EQ("", value(record, "remote-id-text"));
 }
 
 TEST(RecordBuilder, VendorAndUserClassOptions) {
@@ -180,6 +220,8 @@ TEST(RecordBuilder, QueryWithoutOption82HasEmptyRelayFields) {
 
     EXPECT_EQ("", value(r, "circuit-id"));
     EXPECT_EQ("", value(r, "remote-id"));
+    EXPECT_EQ("", value(r, "circuit-id-text"));
+    EXPECT_EQ("", value(r, "remote-id-text"));
     EXPECT_EQ("", value(r, "relay-suboptions"));
 }
 
@@ -236,6 +278,7 @@ TEST(RecordBuilder, Dhcp6AddressLeaseFields) {
     EXPECT_EQ("706f7274", value(r, "relay-interface-id"));
     EXPECT_EQ("port", value(r, "relay-interface-id-text"));
     EXPECT_EQ("000000017231", value(r, "remote-id"));
+    EXPECT_EQ(R"(\x00\x00\x00\x01r1)", value(r, "remote-id-text"));
     EXPECT_EQ("0:18=706f7274,0:37=000000017231", value(r, "relay-suboptions"));
 }
 
