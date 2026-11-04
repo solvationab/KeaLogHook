@@ -33,6 +33,12 @@ C++17 hook library for `kea-dhcp4` that records lease events (with DHCP option 8
 - New event: add it to `knownEventNames()`, register a callout in `src/callouts.cc`.
 - New format: add a branch in `createFormatter()` in `src/formatter.cc`.
 
+## CLI commands
+
+- Human-readable output must be the default for operator-facing commands.
+- Provide mutually exclusive `--json` and `--table` options for machine processing and tabular review; table output is tab-separated with stable column names.
+- Keep output formats consistent in result semantics. JSON should retain complete structured data; document table columns and any omitted fields, schemas, and exit statuses, then test the default and each supported format.
+
 ## Documentation
 
 - Keep docs in sync with behavior changes: `docs/configuration.md` for parameters, `docs/fields.md` for fields and events, `docs/architecture.md` for structure, `README.md` for the overview.
