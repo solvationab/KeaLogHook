@@ -84,6 +84,85 @@ Find installed examples and docs with `dpkg-query -L kea-ip-audit-hook` or
 - **Listing is incomplete:** preserve all events and `lease-expires` plus client
   identities; use JSON logs and include rotations. Audit snapshots are not live lease queries.
 
+## Operating the syslog sink
+
+Add the [syslog example](../examples/sink-syslog.json) to the hook's `sinks` list. It uses
+the explicit name `kea-ip-audit`, facility `local0`, severity `info` and JSON formatting.
+Reserve `local0` for these audit records if routing by facility; otherwise the following
+rules also collect messages from other applications using `local0`. The hook sends to the
+host logging service, not directly to a remote server. It does not configure that service.
+
+### Route records with rsyslog
+
+On hosts running rsyslog, create `/etc/rsyslog.d/30-kea-ip-audit.conf`:
+
+```text
+if ($syslogfacility-text == "local0") then {
+    action(type="omfile" file="/var/log/kea/ip-audit-syslog.log"
+      fileCreateMode="0640" dirCreateMode="0750")
+    stop
+}
+```
+
+Use a path writable by rsyslog and permitted by its AppArmor or SELinux policy. Confirm
+the resulting file ownership and restrict its reader group according to local policy.
+The file includes syslog headers and the `kea-ip-audit: ` prefix, so it is not a JSON-lines
+file for the audit CLI. Use a separate file sink when that format is needed.
+
+Validate the configuration before restarting the logging service:
+
+```sh
+sudo rsyslogd -N1
+sudo systemctl restart rsyslog
+sudo tail -f /var/log/kea/ip-audit-syslog.log
+```
+
+Run the restart only if validation succeeds. Generate a new lease event to check delivery.
+The `stop` prevents later rsyslog rules from also writing these records to general-purpose
+logs; remove it if duplication is intended. Ensure the installed rsyslog input receives
+the host's syslog messages (typically through `imuxsock` or `imjournal`); do not enable both
+for the same stream without checking for duplicates. Configure rotation and retention for
+the new file separately.
+
+### Forward records to a collector
+
+To forward as well as store locally, insert this action inside the same `local0` block,
+before `stop`, replacing the example hostname with your collector:
+
+```text
+action(type="omfwd" target="logs.example.net" port="514" protocol="tcp"
+  action.resumeRetryCount="-1"
+  queue.type="LinkedList" queue.size="10000")
+```
+
+The collector must accept TCP syslog on that port. This example uses unencrypted TCP and
+is suitable only for a trusted network. For transport across untrusted networks, configure
+rsyslog TLS with certificate validation on both ends, or use an authenticated encrypted
+tunnel. Do not send personal audit data over unprotected public connections. Validate and
+restart rsyslog after changing the action, then confirm receipt at the collector.
+
+The action queue isolates temporary collector outages, but it is bounded and memory-only:
+records may be lost on restart or overflow. Configure disk-assisted queues and their storage
+limits using your rsyslog version's documentation when persistence is required. Neither TCP
+nor a successful hook sink write proves durable storage at the collector.
+
+### Query journald
+
+On systemd hosts where journald receives the syslog stream, `local0` has facility number
+`16`. Query recent records or follow new ones with:
+
+```sh
+sudo journalctl SYSLOG_FACILITY=16 --since '1 hour ago' --grep 'kea-ip-audit: ' -o cat
+sudo journalctl SYSLOG_FACILITY=16 --grep 'kea-ip-audit: ' -o cat -f
+```
+
+Use your configured name in the filter. The name is a message prefix, not a configured
+`SYSLOG_IDENTIFIER`; the process identifier may belong to Kea. JSON fields remain text
+inside `MESSAGE`, not independently queryable journal fields. If no records appear, check
+the hook's event filters, the local syslog socket and logging-service input, and generate
+a new lease event. Journal persistence, reader access and retention are system-level settings;
+consult [Privacy and security](#privacy-and-security).
+
 ## Building
 
 Requirements: Kea development headers and libraries (`kea-dhcpsrv`, `kea-dhcp++`,

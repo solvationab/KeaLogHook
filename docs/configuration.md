@@ -66,7 +66,7 @@ These observations are removed when the hook unloads. They can be collected thro
 | Parameter | Type | Default | Description |
 | ----------- | ------ | --------- | ------------- |
 | `type` | string | required | Sink implementation: `file`, `postgres`, `syslog` or `zeromq`. |
-| `name` | string | `<type>-<index>` | Name used in log messages. |
+| `name` | string | `<type>-<index>` | Name used in hook diagnostic messages. The syslog message prefix has a separate default; see below. |
 | `events` | list of strings | all events | Events this sink receives. See [fields.md](fields.md#events). |
 | `format` | string or object | `json` | How a record is serialized by the sink. See below. |
 
@@ -175,10 +175,21 @@ through the same system logging service.
 - `severity` (string, default `info`): syslog severity `emerg`, `alert`, `crit`, `err`,
   `warning`, `notice`, `info`, or `debug`.
 
-The common `name` option labels each message, and `format` selects JSON or template text.
-Newlines and control characters in formatted output are replaced so one audit record stays
+The common `name` option labels each message as `<name>: <formatted record>`. When omitted,
+this prefix defaults to `kea-ip-audit`, while hook diagnostic messages use the common
+`<type>-<index>` default. Set `name` explicitly to use the same label in both places.
+The `format` option selects JSON or template text; the name prefix means the complete syslog
+message is not a bare JSON document.
+
+In formatted output, LF, CR and NUL bytes are replaced with spaces. Other bytes below
+`0x20` are replaced with `?`, except tabs, which are preserved. This keeps each audit record
 on one syslog line. Syslog daemons impose message-size limits and may truncate unusually large
-records. The sink runs on the sink worker, not in the DHCP callout.
+records. The sink runs on the sink worker, not in the DHCP callout. The `syslog(3)` call
+provides no delivery acknowledgement; a successful sink write does not prove that a daemon
+stored or forwarded the record.
+
+See [Operating the syslog sink](operations.md#operating-the-syslog-sink) for local routing,
+remote forwarding and journal queries.
 
 ## `postgres` sink
 

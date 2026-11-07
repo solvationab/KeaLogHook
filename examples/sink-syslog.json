@@ -1,3 +1,7 @@
 {
-  "type": "syslog"
+  "type": "syslog",
+  "name": "kea-ip-audit",
+  "facility": "local0",
+  "severity": "info",
+  "format": "json"
 }
