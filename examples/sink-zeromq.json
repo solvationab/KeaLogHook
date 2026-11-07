@@ -1,4 +1,7 @@
 {
   "type": "zeromq",
-  "endpoint": "tcp://127.0.0.1:5556"
+  "endpoint": "tcp://127.0.0.1:5556",
+  "topic": "ip-audit.%{event}",
+  "multipart": true,
+  "format": "json"
 }
