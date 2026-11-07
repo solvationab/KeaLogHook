@@ -43,7 +43,7 @@ jobs:
             build-essential cmake pkg-config \
             libssl-dev zlib1g-dev libpq-dev \
             kea-dev libzmq3-dev libboost-dev libgtest-dev \
-            kea-dhcp4-server iproute2 python3 apparmor
+            kea-dhcp4-server iproute2 python3 python3-venv apparmor
           # The package starts a Kea instance on its default configuration; the integration test runs its own.
           sudo systemctl stop kea-dhcp4-server || true
 
@@ -74,6 +74,12 @@ jobs:
 
       - name: Lookup CLI tests
         run: python3 tests/test_lookup.py
+
+      - name: Developer consumer tests
+        run: |
+          python3 -m venv build/consumer-venv
+          build/consumer-venv/bin/python -m pip install -r examples/developer/requirements.txt
+          build/consumer-venv/bin/python -B tests/test_consumer.py
 
       - name: Package policy lifecycle tests
         run: sh tests/package_policy_test.sh

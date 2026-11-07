@@ -137,6 +137,14 @@ the end.
     churn, compare service areas, and understand DHCPv4/v6 activity without exposing
     subscriber-level records in routine reporting.
 
+## Developer integrations
+
+26. **Consumer integration kit.** [x] Publish dedicated developer guides for ZeroMQ framing,
+    record compatibility and recovery; align the sink/listener examples; provide a runnable
+    validated listener, synthetic IPv4/IPv6/event fixtures, and a publisher for bursts,
+    malformed messages and reconnect tests. Run consumer tests in CI and ship the kit with
+    release documentation. See [developer/integration.md](developer/integration.md).
+
 ## Suggested order
 
 The PostgreSQL sink (18), IP lookup (20), current-allocation listing (21),

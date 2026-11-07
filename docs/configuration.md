@@ -161,6 +161,10 @@ Publishes records on a ZeroMQ `PUB` socket.
 ZeroMQ subscription filters match on a prefix of the first frame, so subscribers can
 select events or any other topic structure you build with the `topic` template.
 
+For application consumers, see the dedicated [wire contract](developer/wire-format.md)
+and [developer integration guide](developer/integration.md), including runnable examples
+and synthetic records. The example sink explicitly sets a topic; the runtime default is empty.
+
 ## `syslog` sink
 
 Sends one formatted record through the platform's `syslog(3)` interface. The sink name is

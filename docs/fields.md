@@ -25,6 +25,9 @@ fields, the major version for incompatible changes, and the patch version for cl
 that do not change the record structure. Custom field selections may omit schema-required
 properties.
 
+For consumer validation, forward-compatible reading and intentional field projections,
+see the [developer compatibility policy](developer/compatibility.md).
+
 | Field | Type | Description |
 |-------|------|-------------|
 | `timestamp` | string | Time of the event, UTC, ISO 8601 with milliseconds (`2026-10-30T12:00:00.123Z`). |

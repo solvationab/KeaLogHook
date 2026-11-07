@@ -24,6 +24,12 @@ output="$work/packages/release-docs/v1.2.3"
 test -f "$output/kea-ip-audit-hook_1.2.3_amd64_noble.deb"
 test -f "$output/kea-ip-audit-hook_1.2.3_amd64_resolute.deb"
 tar -tzf "$output/kea-ip-audit-docs-1.2.3.tar.gz" | grep -Fx docs/operations.md
+for file in docs/developer/integration.md docs/developer/wire-format.md \
+    docs/developer/compatibility.md docs/developer/recovery.md docs/audit-record.schema.json \
+    examples/developer/listener.py examples/developer/publisher.py \
+    examples/developer/records.jsonl examples/developer/requirements.txt; do
+    tar -tzf "$output/kea-ip-audit-docs-1.2.3.tar.gz" | grep -Fx "$file"
+done
 tar -tzf "$output/kea-ip-audit-docs-1.2.3.tar.gz" | grep -Fx man/man1/ip-audit-lookup.1
 tar -tzf "$output/kea-ip-audit-docs-1.2.3.tar.gz" | grep -Fx man/man1/ip-audit-list.1
 tar -tzf "$output/kea-ip-audit-docs-1.2.3.tar.gz" | grep -Fx man/man1/ip-audit-subscriber.1

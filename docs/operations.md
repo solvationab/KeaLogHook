@@ -337,28 +337,16 @@ The hook logs through Kea's logging framework with the logger name `ip-audit-hoo
 
 ## Consuming ZeroMQ records
 
-Circuit and remote identifiers retain their original hex fields and also have
-`circuit-id-text` and `remote-id-text` representations. Printable ASCII is retained;
-other bytes become lowercase `\xNN` escapes, and literal backslashes are doubled.
-For example, bytes `00 70 6f 72 74` become `\x00port`. JSON additionally escapes
-backslashes, so this appears as `"circuit-id-text":"\\x00port"` in a JSON record.
-This applies to file, ZeroMQ, and PostgreSQL JSON output. Custom field lists and
-templates must include the text fields explicitly. Missing or empty IDs remain empty.
+For application development, use the dedicated [consumer integration guide](developer/integration.md),
+[wire contract](developer/wire-format.md), [compatibility policy](developer/compatibility.md),
+and [recovery guidance](developer/recovery.md). Runnable listeners and a synthetic publisher
+are provided separately from operator commands.
 
-A minimal Python subscriber for the default multipart configuration:
-
-```python
-import zmq
-
-ctx = zmq.Context()
-sock = ctx.socket(zmq.SUB)
-sock.connect("tcp://127.0.0.1:5556")
-sock.setsockopt_string(zmq.SUBSCRIBE, "ip-audit.")  # topic prefix; "" for everything
-
-while True:
-    topic, payload = sock.recv_multipart()
-    print(topic.decode(), payload.decode())
-```
+For deployment, agree the endpoint, topic prefix, framing and JSON field selection with
+the application owner. The [ZeroMQ example](../examples/sink-zeromq.json) explicitly uses
+`ip-audit.%{event}` topics and multipart JSON; an omitted `topic` is empty and does not match
+an `ip-audit.` subscription. Retain a file or PostgreSQL history source for recovery and
+review [Privacy and security](#privacy-and-security) and [Limitations](#limitations).
 
 ## Log file rotation
 

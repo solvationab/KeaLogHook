@@ -219,7 +219,11 @@ filters, and output formats.
 - [docs/configuration.md](docs/configuration.md) - every configuration parameter
 - [docs/fields.md](docs/fields.md) - the fields and events in an audit record
 - [docs/extending.md](docs/extending.md) - adding a new sink
-- [docs/operations.md](docs/operations.md) - building, testing, deploying, consuming data, privacy and limitations
+- [docs/operations.md](docs/operations.md) - building, testing, deploying, operator commands, privacy and limitations
+- [docs/developer/integration.md](docs/developer/integration.md) - developing consumers, reference listener, fixtures and test publisher
+- [docs/developer/wire-format.md](docs/developer/wire-format.md) - ZeroMQ framing, topics and payload encodings
+- [docs/developer/compatibility.md](docs/developer/compatibility.md) - schema versions and forward-compatible reading
+- [docs/developer/recovery.md](docs/developer/recovery.md) - delivery guarantees, reconciliation and consumer security
 - [docs/roadmap.md](docs/roadmap.md) - suggested improvements for ISP use
 
 ## Build Requirements
