@@ -103,7 +103,9 @@ install(FILES examples/kea-dhcp4.conf examples/kea-dhcp6.conf
 install(FILES README.md DESTINATION ${CMAKE_INSTALL_DOCDIR})
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DOCDIR}/docs)
 install(DIRECTORY examples/developer/ DESTINATION ${CMAKE_INSTALL_DOCDIR}/examples/developer
-    PATTERN "__pycache__" EXCLUDE)
+    PATTERN "__pycache__" EXCLUDE
+    PATTERN "bin" EXCLUDE
+    PATTERN "obj" EXCLUDE)
 install(PROGRAMS packaging/security-policy DESTINATION ${CMAKE_INSTALL_LIBEXECDIR}/kea-ip-audit)
 install(FILES packaging/kea-ip-audit.apparmor
     DESTINATION /etc/apparmor.d/abstractions RENAME kea-ip-audit)

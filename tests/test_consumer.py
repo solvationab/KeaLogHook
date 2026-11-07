@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import contextlib
+import csv
 import io
 import json
 import subprocess
@@ -228,5 +229,136 @@ class ConsumerTests(unittest.TestCase):
                 process.communicate(timeout=5)
 
 
+class DotnetConsumerTests(unittest.TestCase):
+    listener_path = None
+
+    @classmethod
+    def setUpClass(cls):
+        if cls.listener_path is None:
+            raise unittest.SkipTest("Use --dotnet-listener PATH to test the built NetMQ listener")
+        cls.records = publisher.load_records(publisher.FIXTURES_PATH)
+
+    def command(self, *arguments):
+        return ["dotnet", str(self.listener_path)] + list(arguments)
+
+    def receive(self, parts, *arguments, count=1):
+        with zmq.Context() as context:
+            with context.socket(zmq.XPUB) as socket:
+                socket.setsockopt(zmq.LINGER, 0)
+                port = socket.bind_to_random_port("tcp://127.0.0.1")
+                process = subprocess.Popen(self.command("--endpoint", "tcp://127.0.0.1:{}".format(port),
+                    "--count", str(count), "--timeout-ms", "3000", *arguments),
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                try:
+                    self.assertTrue(publisher.wait_for_subscription(socket, 10000))
+                    for message in parts:
+                        socket.send_multipart(message)
+                    output, errors = process.communicate(timeout=15)
+                    return process.returncode, output, errors
+                finally:
+                    if process.poll() is None:
+                        process.kill()
+                    process.communicate(timeout=5)
+
+    def test_all_fixtures_and_output_formats(self):
+        parts = [publisher.frames_for(record, "ip-audit.%{event}")[1] for record in self.records]
+        for arguments in ([], ["--json"], ["--table"]):
+            with self.subTest(arguments=arguments):
+                status, output, errors = self.receive(parts, "--strict-schema", *arguments,
+                                                      count=len(self.records))
+                self.assertEqual(0, status, errors)
+                self.assertEqual("", errors)
+                if arguments == ["--json"]:
+                    self.assertEqual(self.records, [json.loads(line)["record"] for line in output.splitlines()])
+                elif arguments == ["--table"]:
+                    rows = list(csv.reader(io.StringIO(output), delimiter="\t"))
+                    self.assertEqual(list(listener.COLUMNS), rows[0])
+                    self.assertEqual(len(self.records) + 1, len(rows))
+                else:
+                    self.assertIn("lease-assign | 192.0.2.10", output)
+
+    def test_compatible_reader_rejects_bad_messages_and_preserves_future_data(self):
+        record = dict(self.records[0], **{"schema-version": "1.2.0", "event": "future-event",
+                                         "future-field": {"nested": "value"}})
+        parts = [publisher.malformed_frames(kind) for kind in ("json", "utf8", "frames")]
+        parts += [[b"ip-audit.invalid", b'{"event":"a","event":"b"}'],
+                  [b"ip-audit.invalid", b'{"extra":NaN}']]
+        for changes in ({"schema-version": "2.0.0"}, {"timestamp": "yesterday"},
+                        {"ip-address": "not-an-ip"}, {"subnet-id": "1"}):
+            parts.append(publisher.frames_for(dict(self.records[0], **changes), "ip-audit.invalid")[1])
+        parts.append(publisher.frames_for(record, "ip-audit.%{event}")[1])
+        status, output, errors = self.receive(parts, "--json")
+        self.assertEqual(0, status, errors)
+        self.assertEqual(record, json.loads(output)["record"])
+        self.assertEqual(len(parts) - 1, errors.count("Rejected message:"))
+
+    def test_strict_schema_and_empty_topic(self):
+        future = dict(self.records[0], **{"schema-version": "1.2.0", "new-field": "value"})
+        parts = [publisher.frames_for(record, "")[1] for record in (future, self.records[0])]
+        status, output, errors = self.receive(parts, "--strict-schema", "--topic", "", "--json")
+        self.assertEqual(0, status, errors)
+        self.assertEqual("", json.loads(output)["topic"])
+        self.assertEqual(self.records[0], json.loads(output)["record"])
+        self.assertEqual(1, errors.count("Rejected message:"))
+
+    def test_table_quotes_tabs_newlines_and_quotes(self):
+        record = dict(self.records[0], server='dhcp\t"node"\nsecond')
+        status, output, errors = self.receive([publisher.frames_for(record, "ip-audit.test")[1]], "--table")
+        self.assertEqual(0, status, errors)
+        rows = list(csv.reader(io.StringIO(output), delimiter="\t"))
+        self.assertEqual(record["server"], rows[1][-1])
+
+    def test_cli_help_and_invalid_options(self):
+        result = subprocess.run(self.command("--help"), capture_output=True, text=True, timeout=15)
+        self.assertEqual(0, result.returncode)
+        self.assertIn("NetMQ", result.stdout)
+        for arguments in (["--json", "--table"], ["--count", "-1"], ["--count", "many"],
+                          ["--count", "999999999999"], ["--timeout-ms", "-2"],
+                          ["--receive-hwm", "0"], ["--endpoint"], ["--unknown"],
+                          ["--schema", "missing-audit-schema.json"], ["--endpoint", "unsupported://test"]):
+            with self.subTest(arguments=arguments):
+                result = subprocess.run(self.command(*arguments), capture_output=True, text=True, timeout=15)
+                self.assertEqual(2, result.returncode, result.stderr)
+
+    def test_idle_timeout(self):
+        result = subprocess.run(self.command("--endpoint", "tcp://127.0.0.1:1", "--timeout-ms", "10"),
+                                capture_output=True, text=True, timeout=15)
+        self.assertEqual(1, result.returncode, result.stderr)
+        self.assertIn("idle timeout", result.stderr)
+
+    def test_tcp_reconnect(self):
+        with zmq.Context() as context:
+            first = context.socket(zmq.XPUB)
+            first.setsockopt(zmq.LINGER, 0)
+            port = first.bind_to_random_port("tcp://127.0.0.1")
+            endpoint = "tcp://127.0.0.1:{}".format(port)
+            process = subprocess.Popen(self.command("--endpoint", endpoint, "--json", "--count", "2",
+                "--timeout-ms", "10000"), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            try:
+                self.assertTrue(publisher.wait_for_subscription(first, 10000))
+                first.send_multipart(publisher.frames_for(self.records[0], "ip-audit.%{event}")[1])
+                first_output = process.stdout.readline()
+                self.assertEqual(self.records[0], json.loads(first_output)["record"])
+                first.close()
+                with context.socket(zmq.XPUB) as second:
+                    second.setsockopt(zmq.LINGER, 0)
+                    second.bind(endpoint)
+                    self.assertTrue(publisher.wait_for_subscription(second, 10000))
+                    second.send_multipart(publisher.frames_for(self.records[1], "ip-audit.%{event}")[1])
+                    output, errors = process.communicate(timeout=15)
+                self.assertEqual(0, process.returncode, errors)
+                self.assertEqual(self.records[:2],
+                                 [json.loads(line)["record"] for line in (first_output + output).splitlines()])
+            finally:
+                first.close()
+                if process.poll() is None:
+                    process.kill()
+                process.communicate(timeout=5)
+
+
 if __name__ == "__main__":
-    unittest.main()
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--dotnet-listener", type=Path)
+    options, remaining = parser.parse_known_args()
+    DotnetConsumerTests.listener_path = options.dotnet_listener
+    unittest.main(argv=[sys.argv[0]] + remaining)

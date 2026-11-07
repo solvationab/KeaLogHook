@@ -6,9 +6,12 @@ not a durable event stream or a query of Kea's current leases. Read the
 [recovery guidance](recovery.md) before using events to maintain application state.
 The [field reference](../fields.md) defines event meanings and identifier encodings.
 
+For C# applications, use the dedicated [.NET listener with NetMQ](dotnet.md) guide and
+runnable project. Both listeners support the same multipart JSON contract and output formats.
+
 ## Quick start
 
-The reference examples require Python 3.10+ and the dependencies in
+The Python reference examples require Python 3.10+ and the dependencies in
 [requirements.txt](../../examples/developer/requirements.txt). This requirement applies
 only to these examples, not the installed audit CLI commands. From a source checkout or
 extracted release documentation archive:

@@ -221,6 +221,7 @@ filters, and output formats.
 - [docs/extending.md](docs/extending.md) - adding a new sink
 - [docs/operations.md](docs/operations.md) - building, testing, deploying, operator commands, privacy and limitations
 - [docs/developer/integration.md](docs/developer/integration.md) - developing consumers, reference listener, fixtures and test publisher
+- [docs/developer/dotnet.md](docs/developer/dotnet.md) - runnable .NET 10 listener using NetMQ
 - [docs/developer/wire-format.md](docs/developer/wire-format.md) - ZeroMQ framing, topics and payload encodings
 - [docs/developer/compatibility.md](docs/developer/compatibility.md) - schema versions and forward-compatible reading
 - [docs/developer/recovery.md](docs/developer/recovery.md) - delivery guarantees, reconciliation and consumer security

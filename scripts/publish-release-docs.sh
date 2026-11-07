@@ -52,7 +52,8 @@ printf '%s\n' \
     'ip-audit-lookup, ip-audit-list, ip-audit-subscriber, ip-audit-check, and ip-audit-report are included. The docs archive contains the README, operations/configuration/field references, man pages, and examples for this version.' \
     > "$notes"
 archive="$output_dir/kea-ip-audit-docs-$version.tar.gz"
-tar -czf "$archive" -C "$repo_root" README.md docs examples man
+tar -czf "$archive" --exclude='examples/developer/dotnet/bin' \
+    --exclude='examples/developer/dotnet/obj' -C "$repo_root" README.md docs examples man
 assets+=("$archive")
 (
     cd "$output_dir"

@@ -141,7 +141,7 @@ the end.
 
 26. **Consumer integration kit.** [x] Publish dedicated developer guides for ZeroMQ framing,
     record compatibility and recovery; align the sink/listener examples; provide a runnable
-    validated listener, synthetic IPv4/IPv6/event fixtures, and a publisher for bursts,
+    validated Python and .NET/NetMQ listeners, synthetic IPv4/IPv6/event fixtures, and a publisher for bursts,
     malformed messages and reconnect tests. Run consumer tests in CI and ship the kit with
     release documentation. See [developer/integration.md](developer/integration.md).
 
