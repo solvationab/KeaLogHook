@@ -82,7 +82,7 @@ jobs:
       - name: Developer consumer tests (Python and NetMQ)
         run: |
           python3 -m venv build/consumer-venv
-          build/consumer-venv/bin/python -m pip install -r examples/developer/requirements.txt
+          build/consumer-venv/bin/python -m pip install -r examples/developer/python/requirements.txt
           dotnet build examples/developer/dotnet/AuditListener.csproj --configuration Release --artifacts-path "$PWD/build/netmq"
           build/consumer-venv/bin/python -B tests/test_consumer.py --dotnet-listener build/netmq/bin/AuditListener/release/AuditListener.dll
 

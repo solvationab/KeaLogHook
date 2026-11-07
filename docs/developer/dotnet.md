@@ -21,11 +21,11 @@ dotnet build/netmq/bin/AuditListener/release/AuditListener.dll --endpoint tcp://
 ```
 
 The same commands work in PowerShell. In a second terminal, run the Python
-[fixture publisher](../../examples/developer/publisher.py) after installing its dependencies
+[fixture publisher](../../examples/developer/python/publisher.py) after installing its dependencies
 as described in the [integration guide](integration.md#quick-start):
 
 ```sh
-.venv/bin/python examples/developer/publisher.py
+.venv/bin/python examples/developer/python/publisher.py
 ```
 
 On Windows, use `.venv\Scripts\python.exe` for that command. The publisher waits for a

@@ -12,32 +12,33 @@ runnable project. Both listeners support the same multipart JSON contract and ou
 ## Quick start
 
 The Python reference examples require Python 3.10+ and the dependencies in
-[requirements.txt](../../examples/developer/requirements.txt). This requirement applies
+[requirements.txt](../../examples/developer/python/requirements.txt). This requirement applies
 only to these examples, not the installed audit CLI commands. From a source checkout or
 extracted release documentation archive:
 
 ```sh
 python3 -m venv .venv
-.venv/bin/python -m pip install -r examples/developer/requirements.txt
+.venv/bin/python -m pip install -r examples/developer/python/requirements.txt
 ```
 
 On Windows, use `py -3.13 -m venv .venv` and `.venv\Scripts\python.exe` instead. Debian/Ubuntu
 may require the `python3-venv` package. Keep the relative `docs/` and `examples/` layout:
 the listener loads the published schema from that tree. These are source examples, not
-new commands installed in `/usr/bin`.
+new commands installed in `/usr/bin`. Python examples are grouped under
+`examples/developer/python/`, separately from the .NET project in `examples/developer/dotnet/`.
 
 ### Without a DHCP server
 
-In one terminal, start the [reference listener](../../examples/developer/listener.py):
+In one terminal, start the [reference listener](../../examples/developer/python/listener.py):
 
 ```sh
-.venv/bin/python examples/developer/listener.py --endpoint tcp://127.0.0.1:5557
+.venv/bin/python examples/developer/python/listener.py --endpoint tcp://127.0.0.1:5557
 ```
 
-In another terminal, start the [fixture publisher](../../examples/developer/publisher.py):
+In another terminal, start the [fixture publisher](../../examples/developer/python/publisher.py):
 
 ```sh
-.venv/bin/python examples/developer/publisher.py
+.venv/bin/python examples/developer/python/publisher.py
 ```
 
 The publisher waits up to 10 seconds for a subscription before sending. It uses XPUB to
@@ -53,7 +54,7 @@ Add [sink-zeromq.json](../../examples/sink-zeromq.json) to the hook's `sinks` li
 `ip-audit.lease-assign`. Start the listener on that host:
 
 ```sh
-.venv/bin/python examples/developer/listener.py --json
+.venv/bin/python examples/developer/python/listener.py --json
 ```
 
 Generate a new lease event; enabling the hook does not publish existing leases. An example
@@ -114,7 +115,7 @@ are reported only on stderr and have no JSON/table record row.
 
 ## Fixtures and consumer tests
 
-[records.jsonl](../../examples/developer/records.jsonl) contains nine synthetic records:
+[records.jsonl](../../examples/developer/python/records.jsonl) contains nine synthetic records:
 all six event types, IPv4, IPv6 IA_NA/IA_TA, an IA_PD `/56`, missing relay data, and a binary
 circuit ID containing NUL and a literal backslash. They conform to the exact published JSON
 schema. They are a parser corpus, not a chronological or complete lease history. Addresses
@@ -129,11 +130,11 @@ topic. `--single-frame` reproduces the alternative framing. To exercise bursts a
 records, while the listener remains running:
 
 ```sh
-.venv/bin/python examples/developer/publisher.py --repeat 100 --interval-ms 0 --send-hwm 10
-.venv/bin/python examples/developer/publisher.py --malformed json
-.venv/bin/python examples/developer/publisher.py --malformed utf8
-.venv/bin/python examples/developer/publisher.py --malformed frames
-.venv/bin/python examples/developer/publisher.py --repeat 4 --restart-every 1
+.venv/bin/python examples/developer/python/publisher.py --repeat 100 --interval-ms 0 --send-hwm 10
+.venv/bin/python examples/developer/python/publisher.py --malformed json
+.venv/bin/python examples/developer/python/publisher.py --malformed utf8
+.venv/bin/python examples/developer/python/publisher.py --malformed frames
+.venv/bin/python examples/developer/python/publisher.py --repeat 4 --restart-every 1
 ```
 
 `--malformed` appends one invalid multipart message per fixture round. The literal injection

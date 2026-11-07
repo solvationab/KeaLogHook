@@ -14,7 +14,7 @@ import zmq
 from jsonschema import Draft202012Validator, FormatChecker
 
 
-SCHEMA_PATH = Path(__file__).resolve().parents[2] / "docs" / "audit-record.schema.json"
+SCHEMA_PATH = Path(__file__).resolve().parents[3] / "docs" / "audit-record.schema.json"
 COLUMNS = ("topic", "timestamp", "event", "ip-address", "address-family", "server")
 
 

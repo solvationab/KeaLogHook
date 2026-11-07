@@ -16,7 +16,7 @@ import zmq
 
 sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "examples" / "developer"))
+sys.path.insert(0, str(ROOT / "examples" / "developer" / "python"))
 import listener
 import publisher
 
@@ -25,7 +25,7 @@ class ConsumerTests(unittest.TestCase):
     def setUp(self):
         self.validator = listener.make_validator()
         self.records = [json.loads(line) for line in
-                        (ROOT / "examples/developer/records.jsonl").read_text().splitlines()]
+                        (ROOT / "examples/developer/python/records.jsonl").read_text().splitlines()]
 
     def payload(self, **changes):
         record = dict(self.records[0], **changes)
@@ -201,7 +201,7 @@ class ConsumerTests(unittest.TestCase):
             first.setsockopt(zmq.LINGER, 0)
             port = first.bind_to_random_port("tcp://127.0.0.1")
             endpoint = "tcp://127.0.0.1:{}".format(port)
-            process = subprocess.Popen([sys.executable, "-B", str(ROOT / "examples/developer/listener.py"),
+            process = subprocess.Popen([sys.executable, "-B", str(ROOT / "examples/developer/python/listener.py"),
                 "--endpoint", endpoint, "--count", "2", "--timeout-ms", "10000", "--json"],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             try:

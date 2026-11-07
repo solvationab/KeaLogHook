@@ -33,8 +33,8 @@ test -f "$output/kea-ip-audit-hook_1.2.3_amd64_resolute.deb"
 tar -tzf "$output/kea-ip-audit-docs-1.2.3.tar.gz" | grep -Fx docs/operations.md
 for file in docs/developer/integration.md docs/developer/dotnet.md docs/developer/wire-format.md \
     docs/developer/compatibility.md docs/developer/recovery.md docs/audit-record.schema.json \
-    examples/developer/listener.py examples/developer/publisher.py \
-    examples/developer/records.jsonl examples/developer/requirements.txt \
+    examples/developer/python/listener.py examples/developer/python/publisher.py \
+    examples/developer/python/records.jsonl examples/developer/python/requirements.txt \
     examples/developer/dotnet/AuditListener.csproj examples/developer/dotnet/Program.cs; do
     tar -tzf "$output/kea-ip-audit-docs-1.2.3.tar.gz" | grep -Fx "$file"
 done
