@@ -6,9 +6,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="NetMQ" Version="4.0.4.5" />
-    <PackageReference Include="JsonSchema.Net" Version="9.6.0" />
-    <Content Include="../../../docs/audit-record.schema.json" Link="audit-record.schema.json"
-             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <ProjectReference Include="../../../dotnet/Kea.IpAudit.NetMQ/Kea.IpAudit.NetMQ.csproj" />
   </ItemGroup>
 </Project>

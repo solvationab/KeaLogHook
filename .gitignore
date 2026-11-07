@@ -1,1 +1,5 @@
 build/
+dotnet/**/bin/
+dotnet/**/obj/
+examples/developer/dotnet/bin/
+examples/developer/dotnet/obj/

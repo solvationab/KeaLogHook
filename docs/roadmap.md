@@ -145,6 +145,12 @@ the end.
     malformed messages and reconnect tests. Run consumer tests in CI and ship the kit with
     release documentation. See [developer/integration.md](developer/integration.md).
 
+27. **.NET client package.** [x] Extract the reusable MIT-licensed NetMQ client with typed
+    records, embedded schema validation, bounded async receiving, independent disposal,
+    diagnostics and logging. Add package/symbol generation, isolated consumer tests and an
+    independently versioned NuGet.org trusted-publishing workflow. First publication requires
+    account-owner authorization; see [developer/nuget.md](developer/nuget.md).
+
 ## Suggested order
 
 The PostgreSQL sink (18), IP lookup (20), current-allocation listing (21),

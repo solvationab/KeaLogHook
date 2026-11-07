@@ -53,7 +53,8 @@ printf '%s\n' \
     > "$notes"
 archive="$output_dir/kea-ip-audit-docs-$version.tar.gz"
 tar -czf "$archive" --exclude='examples/developer/dotnet/bin' \
-    --exclude='examples/developer/dotnet/obj' -C "$repo_root" README.md docs examples man
+    --exclude='examples/developer/dotnet/obj' --exclude='dotnet/*/bin' --exclude='dotnet/*/obj' \
+    -C "$repo_root" README.md global.json docs examples dotnet man
 assets+=("$archive")
 (
     cd "$output_dir"

@@ -10,6 +10,8 @@ import tempfile
 import threading
 import unittest
 import uuid
+import xml.etree.ElementTree as ET
+import zipfile
 from pathlib import Path
 
 import zmq
@@ -356,9 +358,50 @@ class DotnetConsumerTests(unittest.TestCase):
                 process.communicate(timeout=5)
 
 
+class NugetPackageTests(unittest.TestCase):
+    package_path = None
+
+    @classmethod
+    def setUpClass(cls):
+        if cls.package_path is None:
+            raise unittest.SkipTest("Use --nuget-package PATH to validate a packed NuGet artifact")
+
+    def test_metadata_and_license(self):
+        with zipfile.ZipFile(self.package_path) as archive:
+            manifest = next(name for name in archive.namelist() if name.endswith(".nuspec"))
+            metadata = ET.fromstring(archive.read(manifest)).find("{*}metadata")
+            self.assertEqual("Kea.IpAudit.NetMQ", metadata.findtext("{*}id"))
+            self.assertEqual("Solvation", metadata.findtext("{*}authors"))
+            self.assertEqual("MIT", metadata.findtext("{*}license"))
+            self.assertEqual("expression", metadata.find("{*}license").attrib["type"])
+            self.assertEqual("README.md", metadata.findtext("{*}readme"))
+            self.assertEqual("git", metadata.find("{*}repository").attrib["type"])
+
+    def test_assembly_documentation_and_sources(self):
+        with zipfile.ZipFile(self.package_path) as archive:
+            names = archive.namelist()
+            for name in ("lib/net10.0/Kea.IpAudit.NetMQ.dll", "lib/net10.0/Kea.IpAudit.NetMQ.xml",
+                         "README.md", "LICENSE.md"):
+                self.assertIn(name, names)
+            self.assertFalse(any("/obj/" in name or "/bin/" in name or name.endswith(".cs") for name in names))
+            self.assertIn(b"MIT License", archive.read("LICENSE.md"))
+            self.assertIn(b"AuditClient.ReadAllAsync", archive.read("lib/net10.0/Kea.IpAudit.NetMQ.xml"))
+
+    def test_dependency_contract(self):
+        with zipfile.ZipFile(self.package_path) as archive:
+            manifest = next(name for name in archive.namelist() if name.endswith(".nuspec"))
+            groups = ET.fromstring(archive.read(manifest)).findall(".//{*}dependencies/{*}group")
+            self.assertEqual(1, len(groups))
+            self.assertEqual("net10.0", groups[0].attrib["targetFramework"])
+            self.assertEqual({"NetMQ", "JsonSchema.Net", "Microsoft.Extensions.Logging.Abstractions"},
+                             {dependency.attrib["id"] for dependency in groups[0]})
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--dotnet-listener", type=Path)
+    parser.add_argument("--nuget-package", type=Path)
     options, remaining = parser.parse_known_args()
     DotnetConsumerTests.listener_path = options.dotnet_listener
+    NugetPackageTests.package_path = options.nuget_package
     unittest.main(argv=[sys.argv[0]] + remaining)

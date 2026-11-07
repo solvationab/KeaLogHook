@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageId>Kea.IpAudit.NetMQ</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Solvation</Authors>
+    <Description>Typed, schema-validated ZeroMQ lease event consumers for the Kea IP Audit hook.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/solvationab/KeaLogHook</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/solvationab/KeaLogHook</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>Kea;DHCP;ZeroMQ;NetMQ;audit</PackageTags>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IsPackable>true</IsPackable>
+    <EnablePackageValidation>true</EnablePackageValidation>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NetMQ" Version="4.0.4.5" />
+    <PackageReference Include="JsonSchema.Net" Version="9.6.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
+    <EmbeddedResource Include="../../docs/audit-record.schema.json"
+                      LogicalName="Kea.IpAudit.audit-record.schema.json" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="LICENSE.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

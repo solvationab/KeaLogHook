@@ -1,0 +1,117 @@
+name: .NET Client NuGet
+
+on:
+  push:
+    branches: [main]
+    tags: ["dotnet-v*"]
+    paths:
+      - 'dotnet/**'
+      - 'examples/developer/**'
+      - 'tests/test_consumer.py'
+      - 'docs/audit-record.schema.json'
+      - 'global.json'
+      - '.github/workflows/nuget.yml'
+  pull_request:
+    paths:
+      - 'dotnet/**'
+      - 'examples/developer/**'
+      - 'tests/test_consumer.py'
+      - 'docs/audit-record.schema.json'
+      - 'global.json'
+      - '.github/workflows/nuget.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nuget-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test-pack:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Validate version and release ancestry
+        id: version
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            if ($env:GITHUB_REF_NAME -notmatch '^dotnet-v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
+              throw 'NuGet releases must use dotnet-vMAJOR.MINOR.PATCH tags without leading zeroes'
+            }
+            $version = $env:GITHUB_REF_NAME.Substring(8)
+            git merge-base --is-ancestor HEAD origin/main
+            if ($LASTEXITCODE -ne 0) { throw 'Release commit must belong to main' }
+          } else {
+            $version = "0.1.0-ci.$env:GITHUB_RUN_NUMBER"
+          }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Install fixture dependencies
+        run: python -m pip install -r examples/developer/python/requirements.txt
+
+      - name: Library tests
+        run: dotnet test --project dotnet/Kea.IpAudit.NetMQ.Tests/Kea.IpAudit.NetMQ.Tests.csproj --configuration Release --artifacts-path "$PWD/build/nuget" -p:Version=${{ steps.version.outputs.version }} -p:ContinuousIntegrationBuild=true
+
+      - name: Build example
+        run: dotnet build examples/developer/dotnet/AuditListener.csproj --configuration Release --artifacts-path "$PWD/build/nuget" -p:Version=${{ steps.version.outputs.version }} -p:ContinuousIntegrationBuild=true
+
+      - name: Pack and validate
+        run: dotnet pack dotnet/Kea.IpAudit.NetMQ/Kea.IpAudit.NetMQ.csproj --configuration Release --artifacts-path "$PWD/build/nuget" --output "$PWD/build/packages" -p:Version=${{ steps.version.outputs.version }} -p:ContinuousIntegrationBuild=true
+
+      - name: Consumer and package tests
+        run: python -B tests/test_consumer.py --dotnet-listener build/nuget/bin/AuditListener/release/AuditListener.dll --nuget-package build/packages/Kea.IpAudit.NetMQ.${{ steps.version.outputs.version }}.nupkg
+
+      - name: Isolated NuGet consumer
+        run: dotnet run --project dotnet/Kea.IpAudit.NetMQ.PackageSmoke/Kea.IpAudit.NetMQ.PackageSmoke.csproj --configuration Release --artifacts-path "$PWD/build/nuget" -p:AuditPackageVersion=${{ steps.version.outputs.version }} "-p:RestoreAdditionalProjectSources=$PWD/build/packages" "-p:RestorePackagesPath=$PWD/build/consumer-cache"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuget-${{ matrix.os }}
+          path: |
+            build/packages/*.nupkg
+            build/packages/*.snupkg
+          if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/dotnet-v')
+    needs: test-pack
+    runs-on: ubuntu-24.04
+    environment: nuget
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/download-artifact@v4
+        with:
+          name: nuget-ubuntu-24.04
+          path: packages
+      - name: NuGet.org trusted login
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: Solvation
+      - name: Publish package and symbols
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push "packages/*.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate

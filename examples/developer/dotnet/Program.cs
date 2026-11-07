@@ -1,12 +1,9 @@
-using System.Diagnostics;
 using System.Globalization;
-using System.Net;
-using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
+using Kea.IpAudit;
+using Microsoft.Extensions.Logging;
 using Json.Schema;
 using NetMQ;
-using NetMQ.Sockets;
 
 internal enum OutputMode { Human, Json, Table }
 
@@ -14,7 +11,7 @@ internal sealed class ListenerOptions
 {
     public string Endpoint { get; set; } = "tcp://127.0.0.1:5556";
     public string Topic { get; set; } = "ip-audit.";
-    public string SchemaPath { get; set; } = Path.Combine(AppContext.BaseDirectory, "audit-record.schema.json");
+    public string? SchemaPath { get; set; }
     public int Count { get; set; }
     public int TimeoutMs { get; set; } = 30000;
     public int ReceiveHwm { get; set; } = 1000;
@@ -24,11 +21,10 @@ internal sealed class ListenerOptions
 
 internal static class Program
 {
-    private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     private static readonly string[] Columns =
         ["topic", "timestamp", "event", "ip-address", "address-family", "server"];
 
-    public static int Main(string[] arguments)
+    public static async Task<int> Main(string[] arguments)
     {
         try
         {
@@ -41,14 +37,19 @@ internal static class Program
                     --count NUMBER        Accepted records before exit (0: unlimited)
                     --timeout-ms NUMBER   Idle timeout (30000; -1: indefinite)
                     --receive-hwm NUMBER  Receive queue high-water mark (1000)
-                    --schema PATH         Audit JSON Schema (bundled beside executable)
+                    --schema PATH         Alternate audit JSON Schema (default: embedded)
                     --strict-schema       Require the exact published schema
                     --json | --table      Complete JSON envelopes or TSV summaries
                     --help                Show this help
                     """);
                 return 0;
             }
-            return Run(ParseOptions(arguments));
+            return await Run(ParseOptions(arguments));
+        }
+        catch (AuditIdleTimeoutException)
+        {
+            Console.Error.WriteLine("No record received before the idle timeout; check publisher and topic.");
+            return 1;
         }
         catch (Exception error) when (error is ArgumentException or IOException or JsonException
                                       or NetMQException or JsonSchemaException)
@@ -108,102 +109,41 @@ internal static class Program
         options.Output = mode;
     }
 
-    private static JsonSchema LoadSchema(ListenerOptions options)
+    private static async Task<int> Run(ListenerOptions options)
     {
-        JsonNode schema = JsonNode.Parse(File.ReadAllText(options.SchemaPath))
-            ?? throw new InvalidDataException("Schema must be a JSON object");
-        if (!options.StrictSchema)
-        {
-            schema["additionalProperties"] = true;
-            schema["properties"]!["schema-version"] = JsonNode.Parse(
-                """{"type":"string","pattern":"^1\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"}""");
-            schema["properties"]!["event"] = JsonNode.Parse("""{"type":"string","minLength":1}""");
-        }
-        return JsonSchema.Build(JsonSerializer.SerializeToElement(schema),
-            new BuildOptions { Dialect = Dialect.Draft202012, SchemaRegistry = new() });
-    }
-
-    private static int Run(ListenerOptions options)
-    {
-        JsonSchema schema = LoadSchema(options);
-        var evaluation = new EvaluationOptions { RequireFormatValidation = true };
-        using var cancelled = new ManualResetEventSlim();
+        using var cancelled = new CancellationTokenSource();
         ConsoleCancelEventHandler onCancel = (_, eventArgs) =>
         {
             eventArgs.Cancel = true;
-            cancelled.Set();
+            cancelled.Cancel();
         };
         Console.CancelKeyPress += onCancel;
         try
         {
-            using var socket = new SubscriberSocket();
-            socket.Options.Linger = TimeSpan.Zero;
-            socket.Options.ReceiveHighWatermark = options.ReceiveHwm;
-            socket.Subscribe(StrictUtf8.GetBytes(options.Topic));
-            socket.Connect(options.Endpoint);
+            await using var client = new AuditClient(new AuditClientOptions
+            {
+                Endpoint = options.Endpoint,
+                TopicPrefix = options.Topic,
+                ReceiveHighWatermark = options.ReceiveHwm,
+                IdleTimeout = options.TimeoutMs < 0 ? null : TimeSpan.FromMilliseconds(options.TimeoutMs),
+                ValidationMode = options.StrictSchema ? AuditValidationMode.Exact : AuditValidationMode.Compatible,
+                SchemaJson = options.SchemaPath is null ? null : File.ReadAllText(options.SchemaPath)
+            }, new ConsoleAuditLogger());
             if (options.Output == OutputMode.Table)
                 Console.WriteLine(string.Join('\t', Columns));
-            var idle = Stopwatch.StartNew();
             int accepted = 0;
-            while (!cancelled.IsSet && (options.Count == 0 || accepted < options.Count))
+            await foreach (AuditMessage message in client.ReadAllAsync(cancelled.Token))
             {
-                long remaining = options.TimeoutMs < 0 ? 250 : Math.Max(0, options.TimeoutMs - idle.ElapsedMilliseconds);
-                var message = new NetMQMessage();
-                if (!socket.TryReceiveMultipartMessage(TimeSpan.FromMilliseconds(Math.Min(250, remaining)), ref message))
-                {
-                    if (cancelled.IsSet) return 0;
-                    if (options.TimeoutMs >= 0 && idle.ElapsedMilliseconds >= options.TimeoutMs)
-                    {
-                        Console.Error.WriteLine("No record received before the idle timeout; check publisher and topic.");
-                        return 1;
-                    }
-                    continue;
-                }
-                idle.Restart();
-                try
-                {
-                    if (message.FrameCount != 2)
-                        throw new InvalidDataException("expected exactly two frames: topic and JSON payload");
-                    string topic = StrictUtf8.GetString(message[0].ToByteArray());
-                    using JsonDocument document = JsonDocument.Parse(StrictUtf8.GetString(message[1].ToByteArray()));
-                    RejectDuplicateKeys(document.RootElement);
-                    if (!schema.Evaluate(document.RootElement, evaluation).IsValid)
-                        throw new InvalidDataException("record does not match the selected schema");
-                    if (!IPAddress.TryParse(document.RootElement.GetProperty("ip-address").GetString(), out _))
-                        throw new InvalidDataException("invalid ip-address");
-                    WriteRecord(options.Output, topic, document.RootElement);
-                    accepted++;
-                }
-                catch (Exception error) when (error is JsonException or DecoderFallbackException or InvalidDataException)
-                {
-                    Console.Error.WriteLine(error is InvalidDataException
-                        ? $"Rejected message: {error.Message}" : "Rejected message: invalid UTF-8 or JSON payload");
-                }
+                WriteRecord(options.Output, message.Topic, message.RawRecord);
+                accepted++;
+                if (options.Count > 0 && accepted >= options.Count) break;
             }
             return 0;
         }
+        catch (OperationCanceledException) when (cancelled.IsCancellationRequested) { return 0; }
         finally
         {
             Console.CancelKeyPress -= onCancel;
-        }
-    }
-
-    private static void RejectDuplicateKeys(JsonElement element)
-    {
-        if (element.ValueKind == JsonValueKind.Object)
-        {
-            var names = new HashSet<string>(StringComparer.Ordinal);
-            foreach (JsonProperty property in element.EnumerateObject())
-            {
-                if (!names.Add(property.Name))
-                    throw new InvalidDataException("duplicate JSON key");
-                RejectDuplicateKeys(property.Value);
-            }
-        }
-        else if (element.ValueKind == JsonValueKind.Array)
-        {
-            foreach (JsonElement item in element.EnumerateArray())
-                RejectDuplicateKeys(item);
         }
     }
 
@@ -224,4 +164,15 @@ internal static class Program
 
     private static string QuoteTsv(string value) => value.IndexOfAny(['\t', '\r', '\n', '"']) >= 0
         ? '"' + value.Replace("\"", "\"\"") + '"' : value;
+
+    private sealed class ConsoleAuditLogger : ILogger<AuditClient>
+    {
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel level) => level >= LogLevel.Warning;
+        public void Log<TState>(LogLevel level, EventId id, TState state, Exception? error,
+            Func<TState, Exception?, string> formatter)
+        {
+            if (IsEnabled(level)) Console.Error.WriteLine(formatter(state, error).Replace("Rejected audit message:", "Rejected message:"));
+        }
+    }
 }

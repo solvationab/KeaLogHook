@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AuditListener")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5148b066544adbf848450300105cc668d41bb29c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f9fcc0a97d8e0ff00beb84342911684ad854a359")]
 [assembly: System.Reflection.AssemblyProductAttribute("AuditListener")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AuditListener")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

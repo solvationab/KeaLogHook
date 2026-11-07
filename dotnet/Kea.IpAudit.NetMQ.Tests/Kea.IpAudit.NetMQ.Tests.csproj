@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Kea.IpAudit.NetMQ/Kea.IpAudit.NetMQ.csproj" />
+    <PackageReference Include="xunit.v3" Version="4.0.2" />
+    <Content Include="../../examples/developer/python/records.jsonl" Link="records.jsonl"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

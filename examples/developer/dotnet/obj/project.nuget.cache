@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "CBSVsTpjOU8=",
+  "dgSpecHash": "fwP1iBKvB9Q=",
   "success": true,
   "projectFilePath": "C:\\Work\\KeaLogHook\\examples\\developer\\dotnet\\AuditListener.csproj",
   "expectedPackageFiles": [
@@ -9,12 +9,15 @@
     "C:\\Users\\Patrik Backhuvud\\.nuget\\packages\\json.more.net\\3.0.1\\json.more.net.3.0.1.nupkg.sha512",
     "C:\\Users\\Patrik Backhuvud\\.nuget\\packages\\jsonpointer.net\\7.0.4\\jsonpointer.net.7.0.4.nupkg.sha512",
     "C:\\Users\\Patrik Backhuvud\\.nuget\\packages\\jsonschema.net\\9.6.0\\jsonschema.net.9.6.0.nupkg.sha512",
+    "C:\\Users\\Patrik Backhuvud\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\10.0.14\\microsoft.extensions.dependencyinjection.abstractions.10.0.14.nupkg.sha512",
+    "C:\\Users\\Patrik Backhuvud\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\10.0.14\\microsoft.extensions.logging.abstractions.10.0.14.nupkg.sha512",
     "C:\\Users\\Patrik Backhuvud\\.nuget\\packages\\microsoft.extensions.objectpool\\10.0.0\\microsoft.extensions.objectpool.10.0.0.nupkg.sha512",
     "C:\\Users\\Patrik Backhuvud\\.nuget\\packages\\nacl.net\\0.1.13\\nacl.net.0.1.13.nupkg.sha512",
     "C:\\Users\\Patrik Backhuvud\\.nuget\\packages\\netmq\\4.0.4.5\\netmq.4.0.4.5.nupkg.sha512",
     "C:\\Users\\Patrik Backhuvud\\.nuget\\packages\\system.security.cryptography.pkcs\\10.0.13\\system.security.cryptography.pkcs.10.0.13.nupkg.sha512",
     "C:\\Users\\Patrik Backhuvud\\.nuget\\packages\\system.security.cryptography.xml\\10.0.13\\system.security.cryptography.xml.10.0.13.nupkg.sha512",
-    "C:\\Users\\Patrik Backhuvud\\.nuget\\packages\\system.servicemodel.primitives\\10.0.652802\\system.servicemodel.primitives.10.0.652802.nupkg.sha512"
+    "C:\\Users\\Patrik Backhuvud\\.nuget\\packages\\system.servicemodel.primitives\\10.0.652802\\system.servicemodel.primitives.10.0.652802.nupkg.sha512",
+    "C:\\Users\\Patrik Backhuvud\\.nuget\\packages\\kea.ipaudit.netmq\\0.1.0\\kea.ipaudit.netmq.0.1.0.nupkg.sha512"
   ],
   "logs": []
 }

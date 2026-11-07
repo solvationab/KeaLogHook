@@ -6,6 +6,8 @@ implementation, and JsonSchema.Net for JSON Schema validation. No native libzmq 
 is needed by this listener. Install the .NET 10 SDK to build it; `dotnet restore` retrieves
 the pinned NuGet dependencies automatically during the first build.
 
+The example consumes the reusable [NuGet client library](nuget.md) through a project
+reference. Applications can use its package API directly instead of copying the console code.
 The example follows the same [wire contract](wire-format.md) and
 [compatibility policy](compatibility.md) as the Python listener. It is a starting point for
 an application integration, not a durable queue, a live lease query, or a hardened service.
@@ -35,18 +37,18 @@ and omit `--endpoint` (the listener defaults to `tcp://127.0.0.1:5556`). Trigger
 event; the hook does not backfill existing leases. Use TCP endpoints for this NetMQ example;
 do not assume the hook's `ipc://` transport is supported by NetMQ.
 
-The project copies the published audit schema beside its executable, both on build and
-publish. Keep the project and `docs/` in their shipped relative layout when building.
+The library embeds the published audit schema in its assembly. Keep the project, `dotnet/`
+library sources and `docs/` in their shipped relative layout when building from source.
 After building, the output directory is self-contained apart from the .NET runtime, so
 running the DLL does not depend on the current working directory. Keep NuGet dependency
-DLLs and the schema alongside it. Build artifacts are written outside `examples/` to keep
+DLLs alongside it; no external schema is needed by default. Build artifacts are written outside `examples/` to keep
 the documentation tree clean; packaging also excludes local `bin` and `obj` directories.
 
 ## Receiving records
 
-[Program.cs](../../examples/developer/dotnet/Program.cs) owns a single `SubscriberSocket`
-on the main thread, subscribes before connecting, and receives complete multipart messages
-with `TryReceiveMultipartMessage`. Each message must have exactly two frames: topic bytes
+[Program.cs](../../examples/developer/dotnet/Program.cs) uses `AuditClient.ReadAllAsync`.
+The library owns a single `SubscriberSocket` on a dedicated thread, subscribes before
+connecting, and receives complete multipart messages. Each message must have exactly two frames: topic bytes
 and JSON payload bytes. Both are decoded with strict UTF-8. An empty topic frame is valid.
 Single-frame and template payloads are deliberately not supported by this decoder.
 
@@ -61,14 +63,13 @@ uses the exact published schema, including its version, property list and event 
 Both modes require the four core fields. Intentional projections missing those fields need
 a separately agreed decoder/schema, not relaxed guesses.
 
-For integration, replace `WriteRecord` with a bounded handoff to your application's processor.
-Retain `JsonElement` values with `.Clone()` if they must outlive the receiving iteration's
-`JsonDocument`. Hyphenated JSON names such as `ip-address` can be mapped to DTO properties
-with `System.Text.Json.Serialization.JsonPropertyNameAttribute`; preserve unmapped data when
-forward-compatible storage matters. Handle unknown events explicitly before changing state.
+For integration, prefer the [library's typed API](nuget.md#application-integration).
+`AuditMessage.RawRecord` already owns its JSON independently of the receiving iteration.
+Preserve it when forward-compatible storage matters and handle unknown events explicitly
+before changing state.
 
-Do not share the socket across application worker threads. The example polls at most 250 ms
-at a time so Ctrl+C remains responsive, disposes its socket, and calls `NetMQConfig.Cleanup`
+Do not share sockets across application worker threads. The library polls at most 100 ms
+at a time so Ctrl+C remains responsive. The example disposes its client and calls `NetMQConfig.Cleanup`
 when exiting. In an application hosting other NetMQ sockets, coordinate global cleanup with
 their owners rather than copying that process-wide cleanup into every consumer instance.
 
@@ -82,8 +83,7 @@ Run the DLL with `--help` to list options:
 - `--count NUMBER`: exit after this many accepted records; default `0` is unlimited.
 - `--timeout-ms NUMBER`: idle timeout, default `30000`; `-1` waits indefinitely.
 - `--receive-hwm NUMBER`: positive receive queue limit, default `1000`.
-- `--schema PATH`: alternative audit schema; the default is the bundled file, not a path
-  relative to the shell's working directory.
+- `--schema PATH`: alternative audit schema; the default is embedded in the library.
 - `--strict-schema`: require exact producer-schema conformance rather than compatible reading.
 - `--json` or `--table`: mutually exclusive alternatives to readable output.
 

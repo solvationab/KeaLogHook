@@ -100,10 +100,13 @@ install(FILES examples/kea-dhcp4.conf examples/kea-dhcp6.conf
           examples/sink-file.json examples/sink-postgres.json examples/sink-syslog.json
           examples/sink-zeromq.json
       DESTINATION ${CMAKE_INSTALL_DOCDIR}/examples)
-install(FILES README.md DESTINATION ${CMAKE_INSTALL_DOCDIR})
+install(FILES README.md global.json DESTINATION ${CMAKE_INSTALL_DOCDIR})
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DOCDIR}/docs)
 install(DIRECTORY examples/developer/ DESTINATION ${CMAKE_INSTALL_DOCDIR}/examples/developer
     PATTERN "__pycache__" EXCLUDE
+    PATTERN "bin" EXCLUDE
+    PATTERN "obj" EXCLUDE)
+install(DIRECTORY dotnet/ DESTINATION ${CMAKE_INSTALL_DOCDIR}/dotnet
     PATTERN "bin" EXCLUDE
     PATTERN "obj" EXCLUDE)
 install(PROGRAMS packaging/security-policy DESTINATION ${CMAKE_INSTALL_LIBEXECDIR}/kea-ip-audit)

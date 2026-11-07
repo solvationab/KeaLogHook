@@ -8,6 +8,7 @@ The [field reference](../fields.md) defines event meanings and identifier encodi
 
 For C# applications, use the dedicated [.NET listener with NetMQ](dotnet.md) guide and
 runnable project. Both listeners support the same multipart JSON contract and output formats.
+For a reusable package rather than a console application, see the [.NET NuGet client](nuget.md).
 
 ## Quick start
 
