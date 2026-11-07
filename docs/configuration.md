@@ -191,6 +191,55 @@ stored or forwarded the record.
 See [Operating the syslog sink](operations.md#operating-the-syslog-sink) for local routing,
 remote forwarding and journal queries.
 
+### Example output
+
+For compact JSON examples, use the following sink configuration. Unlike the
+[syslog example file](../examples/sink-syslog.json), which includes all non-empty fields,
+this configuration selects only the fields shown below:
+
+```json
+{
+  "type": "syslog",
+  "name": "kea-ip-audit",
+  "facility": "local0",
+  "severity": "info",
+  "format": {
+    "type": "json",
+    "fields": ["timestamp", "event", "ip-address", "hw-address", "subnet-id", "circuit-id-text"]
+  }
+}
+```
+
+Illustrative rows in a traditional syslog file:
+
+```text
+Nov  7 12:00:00 dhcp01 kea-dhcp4: kea-ip-audit: {"timestamp":"2026-11-07T12:00:00.123Z","event":"lease-assign","ip-address":"192.0.2.10","hw-address":"02:00:00:00:00:10","subnet-id":1,"circuit-id-text":"port-7"}
+Nov  7 12:30:00 dhcp01 kea-dhcp4: kea-ip-audit: {"timestamp":"2026-11-07T12:30:00.456Z","event":"lease-renew","ip-address":"192.0.2.10","hw-address":"02:00:00:00:00:10","subnet-id":1,"circuit-id-text":"port-7"}
+Nov  7 12:45:00 dhcp01 kea-dhcp4: kea-ip-audit: {"timestamp":"2026-11-07T12:45:00.789Z","event":"lease-release","ip-address":"192.0.2.10","hw-address":"02:00:00:00:00:10","subnet-id":1,"circuit-id-text":"port-7"}
+```
+
+The logging service supplies the outer timestamp, hostname and process tag; their format
+and the presence of a PID depend on the host configuration. The hook supplies only
+`kea-ip-audit: ` and the formatted record. Missing or empty fields are omitted by default;
+relay fields appear only when the event contains the corresponding relay data. Facility
+and severity are syslog metadata and need not appear in the printed line.
+
+For template text, replace the `format` value in the configuration above with:
+
+```json
+{
+  "type": "template",
+  "template": "%{timestamp} %{event} ip=%{ip-address} mac=%{hw-address} circuit=%{circuit-id-text}"
+}
+```
+
+The same assignment appears as follows with `journalctl -o cat`, which shows the message
+without the outer syslog header:
+
+```text
+kea-ip-audit: 2026-11-07T12:00:00.123Z lease-assign ip=192.0.2.10 mac=02:00:00:00:00:10 circuit=port-7
+```
+
 ## `postgres` sink
 
 Stores every audit record in `ip_audit_events` as JSONB. It also maintains lease intervals
