@@ -8,7 +8,14 @@ using NetMQ;
 using NetMQ.Sockets;
 using Xunit;
 
+[assembly: AssemblyFixture(typeof(Kea.IpAudit.Tests.NetMqTestLifetime))]
+
 namespace Kea.IpAudit.Tests;
+
+public sealed class NetMqTestLifetime : IDisposable
+{
+    public void Dispose() => NetMQConfig.Cleanup(false);
+}
 
 public sealed class AuditClientTests
 {
@@ -123,15 +130,20 @@ public sealed class AuditClientTests
         Assert.Throws<ArgumentException>(() => new AuditRecordDecoder(schemaJson: "{}"));
     }
 
-    [Fact]
-    public async Task IdleTimeoutAndPrecancelledEnumerationAreBounded()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(0.1)]
+    [InlineData(0.5)]
+    [InlineData(1)]
+    [InlineData(20)]
+    public async Task IdleTimeoutAndPrecancelledEnumerationAreBounded(double timeoutMilliseconds)
     {
         await using var client = new AuditClient(new AuditClientOptions
         {
-            Endpoint = "tcp://127.0.0.1:1", IdleTimeout = TimeSpan.FromMilliseconds(20)
+            Endpoint = "tcp://127.0.0.1:1", IdleTimeout = TimeSpan.FromMilliseconds(timeoutMilliseconds)
         });
         await using var enumerator = Enumerate(client);
-        await Assert.ThrowsAsync<AuditIdleTimeoutException>(async () => await enumerator.MoveNextAsync());
+        await Assert.ThrowsAsync<AuditIdleTimeoutException>(async () => await Wait(enumerator.MoveNextAsync().AsTask(), 2));
         await using var cancelledClient = new AuditClient();
         using var cancelled = new CancellationTokenSource();
         cancelled.Cancel();

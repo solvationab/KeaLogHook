@@ -77,6 +77,10 @@ stream with `AuditRecordException`. A configured idle timeout ends it with
 `AuditIdleTimeoutException`; no timeout is configured by default. Socket/startup failures
 propagate through enumeration. Cancellation raises `OperationCanceledException`.
 
+Positive socket poll intervals are rounded up to whole milliseconds, with a 100 ms maximum
+per poll. This avoids NetMQ's fractional-millisecond timeout trap; zero remains a nonblocking
+check. Submillisecond idle timeouts therefore have millisecond polling granularity.
+
 `Diagnostics` contains cumulative local counters: complete messages received from the socket,
 records admitted to the decoded buffer, rejected messages, and validated unknown events,
 plus the last rejection reason. Its fields are individually atomic, not a transactional

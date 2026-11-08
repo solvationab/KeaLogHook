@@ -103,7 +103,8 @@ public sealed class AuditClient : IDisposable, IAsyncDisposable
             {
                 double remaining = options.IdleTimeout is TimeSpan timeout
                     ? Math.Max(0, timeout.TotalMilliseconds - idle.Elapsed.TotalMilliseconds) : 100;
-                if (!socket.TryReceiveMultipartBytes(TimeSpan.FromMilliseconds(Math.Min(100, remaining)), ref frames))
+                int pollMilliseconds = (int)Math.Ceiling(Math.Min(100, remaining));
+                if (!socket.TryReceiveMultipartBytes(TimeSpan.FromMilliseconds(pollMilliseconds), ref frames))
                 {
                     if (options.IdleTimeout is TimeSpan limit && idle.Elapsed >= limit
                         && !cancellationToken.IsCancellationRequested)
